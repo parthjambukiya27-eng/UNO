@@ -440,9 +440,14 @@ class UnoClientApp {
     const tableEl = document.getElementById('game-table');
     tableEl.className = `game-table color-${state.currentColor || 'default'}`;
 
+    // Direction & Color Compass
     const dirIndicator = document.getElementById('direction-indicator');
+    const dirText = document.getElementById('direction-text');
     if (dirIndicator) {
-      dirIndicator.className = `direction-indicator ${state.direction === 1 ? 'dir-cw' : 'dir-ccw'}`;
+      const isCW = state.direction === 1;
+      const dirIcon = dirIndicator.querySelector('.dir-icon');
+      if (dirIcon) dirIcon.textContent = isCW ? '↻' : '↺';
+      if (dirText) dirText.textContent = isCW ? 'Clockwise' : 'Counter-CW';
     }
 
     // Stacked Counter Pill
@@ -458,9 +463,10 @@ class UnoClientApp {
 
     // Active Color Indicator
     const colorTag = document.getElementById('current-color-tag');
+    const colorText = document.getElementById('color-name-text');
     if (colorTag) {
-      colorTag.textContent = state.currentColor ? state.currentColor.toUpperCase() : 'WILD';
-      colorTag.className = `current-color-tag color-${state.currentColor}`;
+      colorTag.className = `current-color-badge color-${state.currentColor || 'default'}`;
+      if (colorText) colorText.textContent = state.currentColor ? state.currentColor.toUpperCase() : 'WILD';
     }
 
     // 2. Discard Pile Top Card

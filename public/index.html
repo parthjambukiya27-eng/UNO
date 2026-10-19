@@ -14,14 +14,6 @@
 </head>
 <body>
 
-  <!-- Decorative Background Bursts -->
-  <svg class="bg-burst-accent bg-burst-1" viewBox="0 0 100 100" fill="#ff5400">
-    <path d="M50 0 L58 35 L93 20 L73 50 L100 65 L65 73 L58 100 L42 73 L7 85 L27 50 L0 35 L35 27 Z"/>
-  </svg>
-  <svg class="bg-burst-accent bg-burst-2" viewBox="0 0 100 100" fill="#fca311">
-    <path d="M50 0 L58 35 L93 20 L73 50 L100 65 L65 73 L58 100 L42 73 L7 85 L27 50 L0 35 L35 27 Z"/>
-  </svg>
-
   <!-- Toast Notification Hub -->
   <div id="toast-container" class="toast-container"></div>
 
@@ -32,16 +24,20 @@
   <!-- 1. LOBBY VIEW                                     -->
   <!-- ================================================= -->
   <main id="view-lobby" class="view active">
-    <div class="lobby-container paper-panel">
+    <div class="lobby-container">
       
       <div class="logo-header">
-        <div class="star-decorator">✦ ✸ ✦</div>
-        <h1 class="uno-title">UNO<span class="title-accent">!</span></h1>
-        <p class="uno-subtitle">Modern Multi-Device Card Club</p>
+        <div class="uno-brand">
+          <span class="uno-brand-letter letter-u">U</span>
+          <span class="uno-brand-letter letter-n">N</span>
+          <span class="uno-brand-letter letter-o">O</span>
+          <span class="uno-brand-letter letter-ex">!</span>
+        </div>
+        <p class="uno-tagline">Real-Time Multiplayer Card Game</p>
       </div>
 
       <div id="network-ip-display" class="network-badge">
-        ✦ Connect other phones on same Wi-Fi
+        📱 Connect other phones on same Wi-Fi
       </div>
 
       <!-- Player Profile Setup -->
@@ -182,46 +178,49 @@
         </div>
       </header>
 
-      <!-- Clean Modern Card Arena Area (No Gambling Table) -->
+      <!-- Boardgame Table Viewport -->
       <div class="table-viewport">
         
-        <!-- Opponents Player Badges (Around the table) -->
+        <!-- Opponents Player Badges (Top Seats) -->
         <div id="opponents-container" class="opponents-container"></div>
 
-        <!-- Modern Play Mat -->
+        <!-- Physical Boardgame Play Mat (Clean tactile card tray) -->
         <div id="game-table" class="game-table">
-          <div style="position: absolute; top: 12px; left: 16px; font-size: 14px; color: #cfc5b2;">✦</div>
-          <div style="position: absolute; top: 12px; right: 16px; font-size: 14px; color: #cfc5b2;">✸</div>
-          <div style="position: absolute; bottom: 12px; left: 16px; font-size: 14px; color: #cfc5b2;">✸</div>
-          <div style="position: absolute; bottom: 12px; right: 16px; font-size: 14px; color: #cfc5b2;">✦</div>
-
-          <!-- Direction Orbit Arrows -->
-          <div id="direction-indicator" class="direction-indicator dir-cw"></div>
-
-          <!-- Stacked Penalty Badge -->
-          <div id="stack-counter-pill" class="stack-counter-pill">+2 TO DRAW!</div>
-
-          <!-- Active Color Tag -->
-          <div id="current-color-tag" class="current-color-tag">RED</div>
-
-          <!-- Center Draw & Discard Piles -->
           <div class="center-arena">
             
-            <!-- Draw Pile (Stacked 3D deck) -->
-            <div id="draw-pile-deck" class="card-slot deck-slot" title="Click to Draw a Card">
-              <div class="uno-card card-back">
-                <div class="card-inner">
-                  <div class="card-glare"></div>
-                  <div class="card-center-oval back-oval">
-                    <div class="back-logo">UNO</div>
+            <!-- Draw Pile Slot (Stacked 3D deck) -->
+            <div class="card-tray-slot">
+              <span class="slot-label">Draw</span>
+              <div id="draw-pile-deck" class="card-slot deck-slot" title="Click to Draw a Card">
+                <div class="uno-card card-back">
+                  <div class="card-inner">
+                    <div class="card-glare"></div>
+                    <div class="card-center-oval back-oval">
+                      <div class="back-logo">UNO</div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Discard Pile (Drop Zone) -->
-            <div id="discard-drop-zone" class="card-slot">
-              <div id="discard-pile-card"></div>
+            <!-- Turn Direction & Active Color Compass -->
+            <div class="center-compass">
+              <div id="stack-counter-pill" class="stack-counter-pill">+2 TO DRAW!</div>
+              <div id="current-color-tag" class="current-color-badge color-red">
+                <span>●</span> <span id="color-name-text">RED</span>
+              </div>
+              <div id="direction-indicator" class="direction-badge">
+                <span class="dir-icon">↻</span>
+                <span id="direction-text">Clockwise</span>
+              </div>
+            </div>
+
+            <!-- Discard Pile Slot -->
+            <div class="card-tray-slot">
+              <span class="slot-label">Discard</span>
+              <div id="discard-drop-zone" class="card-slot">
+                <div id="discard-pile-card"></div>
+              </div>
             </div>
 
           </div>
@@ -231,7 +230,6 @@
         <div class="hand-tray-container">
           <div class="hand-meta-bar">
             <div id="self-seat-container"></div>
-            <span id="my-cards-count" class="card-count-badge">0 Cards</span>
           </div>
 
           <!-- Curved Hand of Cards -->
@@ -240,32 +238,23 @@
 
       </div>
 
-      <!-- Action Controls Bar -->
+      <!-- Action Controls Bar (Tactile Push Buttons) -->
       <footer class="action-controls-bar">
-        <button id="btn-draw-card" class="btn-action">
+        <button id="btn-draw-card" class="btn-tactile">
           🃏 Draw Card
         </button>
 
-        <button id="btn-pass-turn" class="btn-action" disabled>
+        <button id="btn-pass-turn" class="btn-tactile" disabled>
           ⏭ Pass Turn
         </button>
 
-        <button id="btn-shout-uno" class="btn-shout-uno">
+        <button id="btn-shout-uno" class="btn-uno-shout">
           UNO!
         </button>
 
         <button id="btn-catch-uno" class="btn-catch-uno" disabled title="Catch an opponent who didn't shout UNO!">
           🚨 CATCH!
         </button>
-
-        <!-- Emoji Quick Taunts -->
-        <div class="reactions-drawer">
-          <button class="reaction-btn" data-emoji="🔥">🔥</button>
-          <button class="reaction-btn" data-emoji="😱">😱</button>
-          <button class="reaction-btn" data-emoji="😂">😂</button>
-          <button class="reaction-btn" data-emoji="👑">👑</button>
-          <button class="reaction-btn" data-emoji="💥">💥</button>
-        </div>
       </footer>
 
     </div>
