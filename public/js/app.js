@@ -1,7 +1,7 @@
 // UNO Web Client Controller with Socket.io, Touch Gestures, Drag-and-Drop, and Multi-Device Support
 
 // Set your live Render backend URL here (e.g., 'https://uno-online.onrender.com')
-const RENDER_BACKEND_URL = '';
+const RENDER_BACKEND_URL = 'https://uno-4qds.onrender.com';
 
 function getApiBaseUrl() {
   if (RENDER_BACKEND_URL) return RENDER_BACKEND_URL.replace(/\/$/, '');
@@ -435,7 +435,7 @@ class UnoClientApp {
   renderGameArena(state) {
     // 1. Header & Info
     document.getElementById('game-room-tag').textContent = `Room: ${state.roomCode}`;
-    
+
     // Direction & Color Aura
     const tableEl = document.getElementById('game-table');
     tableEl.className = `game-table color-${state.currentColor || 'default'}`;
@@ -492,7 +492,7 @@ class UnoClientApp {
     const opponents = state.players.filter(p => p.id !== this.playerId);
     const isCurrentTurnPlayer = (id) => state.currentTurnPlayerId === id;
 
-    seatsContainer.innerHTML = opponents.map(p => 
+    seatsContainer.innerHTML = opponents.map(p =>
       CardRenderer.renderPlayerSeat(p, isCurrentTurnPlayer(p.id), false)
     ).join('');
 
