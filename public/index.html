@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>UNO Online - Real-Time Multi-Device Card Game</title>
+  <meta name="description" content="Play official UNO online with friends from any phone, tablet, or PC with real-time multiplayer, 3D graphics, sound FX, and house rules.">
+  <meta name="theme-color" content="#ef233c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <link rel="stylesheet" href="/css/style.css?v=2">
+  <link rel="stylesheet" href="/css/cards.css?v=2">
+</head>
+<body>
+
+  <!-- Decorative Background Bursts -->
+  <svg class="bg-burst-accent bg-burst-1" viewBox="0 0 100 100" fill="#ff5400">
+    <path d="M50 0 L58 35 L93 20 L73 50 L100 65 L65 73 L58 100 L42 73 L7 85 L27 50 L0 35 L35 27 Z"/>
+  </svg>
+  <svg class="bg-burst-accent bg-burst-2" viewBox="0 0 100 100" fill="#fca311">
+    <path d="M50 0 L58 35 L93 20 L73 50 L100 65 L65 73 L58 100 L42 73 L7 85 L27 50 L0 35 L35 27 Z"/>
+  </svg>
+
+  <!-- Toast Notification Hub -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- VFX Confetti and Particles Layer -->
+  <div id="vfx-container"></div>
+
+  <!-- ================================================= -->
+  <!-- 1. LOBBY VIEW                                     -->
+  <!-- ================================================= -->
+  <main id="view-lobby" class="view active">
+    <div class="lobby-container paper-panel">
+      
+      <div class="logo-header">
+        <div class="star-decorator">✦ ✸ ✦</div>
+        <h1 class="uno-title">UNO<span class="title-accent">!</span></h1>
+        <p class="uno-subtitle">Modern Multi-Device Card Club</p>
+      </div>
+
+      <div id="network-ip-display" class="network-badge">
+        ✦ Connect other phones on same Wi-Fi
+      </div>
+
+      <!-- Player Profile Setup -->
+      <section class="profile-section">
+        <label class="input-label" for="player-name-input">Your Player Name</label>
+        <input type="text" id="player-name-input" class="text-input" placeholder="Enter your nickname" maxlength="15" value="Player 1">
+
+        <label class="input-label" style="margin-top: 14px;">Choose Your Avatar</label>
+        <div class="avatar-grid">
+          <button type="button" class="avatar-option selected" data-avatar="😎">😎</button>
+          <button type="button" class="avatar-option" data-avatar="👑">👑</button>
+          <button type="button" class="avatar-option" data-avatar="🦊">🦊</button>
+          <button type="button" class="avatar-option" data-avatar="🤖">🤖</button>
+          <button type="button" class="avatar-option" data-avatar="🦄">🦄</button>
+          <button type="button" class="avatar-option" data-avatar="🦖">🦖</button>
+          <button type="button" class="avatar-option" data-avatar="🐯">🐯</button>
+          <button type="button" class="avatar-option" data-avatar="🥷">🥷</button>
+          <button type="button" class="avatar-option" data-avatar="👾">👾</button>
+          <button type="button" class="avatar-option" data-avatar="🚀">🚀</button>
+        </div>
+      </section>
+
+      <!-- Game Modes -->
+      <div class="modes-grid">
+        <button id="btn-create-room" class="btn-primary">
+          <span>👑</span> Create Private Room
+        </button>
+
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="join-room-input" class="text-input" placeholder="CODE" maxlength="4" style="text-transform: uppercase; text-align: center; font-weight: bold; letter-spacing: 2px;">
+          <button id="btn-join-room" class="btn-secondary" style="white-space: nowrap;">
+            Join
+          </button>
+        </div>
+
+        <button id="btn-quick-solo" class="btn-solo">
+          <span>🤖</span> Solo Play vs AI Bots (Instant Match)
+        </button>
+      </div>
+
+      <!-- House Rules Customizer -->
+      <details class="rules-accordion">
+        <summary>⚙️ House Rules & Game Settings</summary>
+        <div class="rules-list">
+          <label class="rule-item">
+            <input type="checkbox" id="rule-stacking" checked>
+            <span>Stacking (+2 on +2, +4 on +4)</span>
+          </label>
+          <label class="rule-item">
+            <input type="checkbox" id="rule-stack-4on2">
+            <span>Stack +4 on top of +2</span>
+          </label>
+          <label class="rule-item">
+            <input type="checkbox" id="rule-challenge" checked>
+            <span>Wild Draw 4 Challenge Rule</span>
+          </label>
+          <label class="rule-item">
+            <input type="checkbox" id="rule-seven-zero">
+            <span>7-0 Rule (7 swaps, 0 rotates)</span>
+          </label>
+          <label class="rule-item">
+            <input type="checkbox" id="rule-jump-in">
+            <span>Jump-In (Play duplicate card out of turn)</span>
+          </label>
+          <label class="rule-item">
+            <input type="checkbox" id="rule-draw-match">
+            <span>Draw until Playable</span>
+          </label>
+        </div>
+      </details>
+
+      <div style="margin-top: 20px;">
+        <button id="btn-rules" class="btn-secondary" style="font-size: 13px; padding: 8px 16px; margin: 0 auto;">
+          📖 View Official UNO Rules
+        </button>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ================================================= -->
+  <!-- 2. WAITING ROOM VIEW                              -->
+  <!-- ================================================= -->
+  <section id="view-waiting" class="view">
+    <div class="waiting-container paper-panel">
+      <h2 style="font-family: var(--font-display); font-size: 28px;">Game Lobby</h2>
+      <p style="color: var(--text-muted); font-size: 14px;">Scan with your phone or share the room code</p>
+
+      <div class="room-code-badge">
+        <div class="code-title">Room Code</div>
+        <div id="waiting-room-code" class="code-value">----</div>
+      </div>
+
+      <!-- QR Code for Mobile Phones -->
+      <div class="qr-section">
+        <div class="qr-box">
+          <img id="waiting-qr-img" alt="Scan to join room with phone">
+        </div>
+        <div class="share-bar">
+          <input type="text" id="share-url-input" class="text-input" readonly style="font-size: 13px; padding: 10px;">
+          <button id="btn-copy-link" class="btn-secondary" style="padding: 10px 14px;">Copy</button>
+        </div>
+      </div>
+
+      <!-- Players in Room -->
+      <h3 style="font-size: 14px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px;">Players (2 - 8)</h3>
+      <div id="waiting-player-list" class="waiting-players-grid"></div>
+
+      <!-- Host Action Controls -->
+      <div id="waiting-host-controls" class="host-controls">
+        <button id="btn-add-bot" class="btn-secondary">
+          🤖 Add AI Bot
+        </button>
+        <button id="btn-start-game" class="btn-primary" disabled>
+          🚀 Start Game
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================= -->
+  <!-- 3. GAME ARENA VIEW                                -->
+  <!-- ================================================= -->
+  <section id="view-game" class="view">
+    <div class="game-arena">
+      
+      <!-- Top Navigation Bar -->
+      <header class="game-header">
+        <div class="game-header-left">
+          <span id="game-room-tag" class="room-tag">Room: ----</span>
+          <div id="status-ticker" class="status-ticker">Waiting for game to begin...</div>
+        </div>
+
+        <div class="game-header-right">
+          <button id="btn-toggle-sound" class="icon-btn" title="Toggle Sound FX">🔊</button>
+          <button id="btn-toggle-music" class="icon-btn" title="Toggle Arcade Music">🎵</button>
+          <button id="btn-leave-game" class="icon-btn" title="Exit Game" style="color: #ef233c;">✕</button>
+        </div>
+      </header>
+
+      <!-- Clean Modern Card Arena Area (No Gambling Table) -->
+      <div class="table-viewport">
+        
+        <!-- Opponents Player Badges (Around the table) -->
+        <div id="opponents-container" class="opponents-container"></div>
+
+        <!-- Modern Play Mat -->
+        <div id="game-table" class="game-table">
+          <div style="position: absolute; top: 12px; left: 16px; font-size: 14px; color: #cfc5b2;">✦</div>
+          <div style="position: absolute; top: 12px; right: 16px; font-size: 14px; color: #cfc5b2;">✸</div>
+          <div style="position: absolute; bottom: 12px; left: 16px; font-size: 14px; color: #cfc5b2;">✸</div>
+          <div style="position: absolute; bottom: 12px; right: 16px; font-size: 14px; color: #cfc5b2;">✦</div>
+
+          <!-- Direction Orbit Arrows -->
+          <div id="direction-indicator" class="direction-indicator dir-cw"></div>
+
+          <!-- Stacked Penalty Badge -->
+          <div id="stack-counter-pill" class="stack-counter-pill">+2 TO DRAW!</div>
+
+          <!-- Active Color Tag -->
+          <div id="current-color-tag" class="current-color-tag">RED</div>
+
+          <!-- Center Draw & Discard Piles -->
+          <div class="center-arena">
+            
+            <!-- Draw Pile (Stacked 3D deck) -->
+            <div id="draw-pile-deck" class="card-slot deck-slot" title="Click to Draw a Card">
+              <div class="uno-card card-back">
+                <div class="card-inner">
+                  <div class="card-glare"></div>
+                  <div class="card-center-oval back-oval">
+                    <div class="back-logo">UNO</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Discard Pile (Drop Zone) -->
+            <div id="discard-drop-zone" class="card-slot">
+              <div id="discard-pile-card"></div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Bottom Hand Area -->
+        <div class="hand-tray-container">
+          <div class="hand-meta-bar">
+            <div id="self-seat-container"></div>
+            <span id="my-cards-count" class="card-count-badge">0 Cards</span>
+          </div>
+
+          <!-- Curved Hand of Cards -->
+          <div id="my-hand-container" class="my-hand-cards"></div>
+        </div>
+
+      </div>
+
+      <!-- Action Controls Bar -->
+      <footer class="action-controls-bar">
+        <button id="btn-draw-card" class="btn-action">
+          🃏 Draw Card
+        </button>
+
+        <button id="btn-pass-turn" class="btn-action" disabled>
+          ⏭ Pass Turn
+        </button>
+
+        <button id="btn-shout-uno" class="btn-shout-uno">
+          UNO!
+        </button>
+
+        <button id="btn-catch-uno" class="btn-catch-uno" disabled title="Catch an opponent who didn't shout UNO!">
+          🚨 CATCH!
+        </button>
+
+        <!-- Emoji Quick Taunts -->
+        <div class="reactions-drawer">
+          <button class="reaction-btn" data-emoji="🔥">🔥</button>
+          <button class="reaction-btn" data-emoji="😱">😱</button>
+          <button class="reaction-btn" data-emoji="😂">😂</button>
+          <button class="reaction-btn" data-emoji="👑">👑</button>
+          <button class="reaction-btn" data-emoji="💥">💥</button>
+        </div>
+      </footer>
+
+    </div>
+  </section>
+
+  <!-- ================================================= -->
+  <!-- MODALS                                            -->
+  <!-- ================================================= -->
+
+  <!-- Wild Color Picker Modal -->
+  <div id="modal-wild-color" class="modal-backdrop">
+    <div class="modal-card">
+      <h2 class="modal-title">Choose Color</h2>
+      <p class="modal-desc">Select which color continues the game</p>
+
+      <div class="wild-color-grid">
+        <button class="wild-quad-btn quad-red" data-color="red">RED</button>
+        <button class="wild-quad-btn quad-blue" data-color="blue">BLUE</button>
+        <button class="wild-quad-btn quad-yellow" data-color="yellow">YELLOW</button>
+        <button class="wild-quad-btn quad-green" data-color="green">GREEN</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Wild Draw 4 Challenge Modal -->
+  <div id="modal-challenge" class="modal-backdrop">
+    <div class="modal-card">
+      <h2 class="modal-title">Wild Draw 4 Challenge!</h2>
+      <p class="modal-desc">
+        A Wild Draw 4 was played against you! Under official UNO rules, this card can only be played if the player has NO matching color cards.
+      </p>
+
+      <div class="modal-actions">
+        <button id="btn-accept-challenge" class="btn-secondary">
+          Accept +4 Cards
+        </button>
+        <button id="btn-do-challenge" class="btn-primary">
+          Challenge! (Check Bluff)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7-Swap Player Select Modal -->
+  <div id="modal-swap-7" class="modal-backdrop">
+    <div class="modal-card">
+      <h2 class="modal-title">7-Swap Rule!</h2>
+      <p class="modal-desc">Select an opponent to swap your entire hand with:</p>
+      <div id="swap-target-list" class="swap-list"></div>
+    </div>
+  </div>
+
+  <!-- Game / Round Over Modal -->
+  <div id="modal-game-over" class="modal-backdrop">
+    <div class="modal-card">
+      <h2 id="game-over-title" class="modal-title">Round Over!</h2>
+      <p id="game-over-message" class="modal-desc"></p>
+      
+      <div id="game-over-scores" class="scores-list"></div>
+
+      <button id="btn-next-round" class="btn-primary" style="margin: 0 auto;">
+        Next Round
+      </button>
+    </div>
+  </div>
+
+  <!-- Official Rules & Guide Modal -->
+  <div id="modal-rules" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 600px;">
+      <h2 class="modal-title">Official UNO Rules</h2>
+      
+      <div class="rules-content-scroll">
+        <h3>Objective</h3>
+        <p>Be the first player to play all cards from your hand. You score points from the cards left in opponents' hands. First to 250 points wins the match!</p>
+
+        <h3>Matching Rules</h3>
+        <p>On your turn, you must match a card from your hand to the card on top of the Discard pile, either by <strong>Color</strong>, <strong>Number</strong>, or <strong>Action Symbol</strong>.</p>
+
+        <h3>Action Cards</h3>
+        <p><strong>Draw Two (+2):</strong> Next player must draw 2 cards and lose their turn.</p>
+        <p><strong>Reverse (⇄):</strong> Reverses direction of play. (In a 2-player game, acts as a Skip!)</p>
+        <p><strong>Skip (⊘):</strong> Next player is skipped.</p>
+        <p><strong>Wild:</strong> Can be played on any turn. You declare the next active color.</p>
+        <p><strong>Wild Draw Four (+4):</strong> Next player draws 4 cards and loses their turn. You declare the color. Can be challenged under official rules!</p>
+
+        <h3>Calling UNO</h3>
+        <p>When you have only 1 card left, you MUST hit the <strong>"UNO!"</strong> button. If you forget and another player presses <strong>"CATCH!"</strong>, you must draw 2 penalty cards!</p>
+
+        <h3>House Rules (Configurable)</h3>
+        <p><strong>Stacking:</strong> Stack +2 on +2 or +4 on +4 to pass the draw penalty to the next player!</p>
+        <p><strong>7-0 Rule:</strong> Playing a 7 lets you swap hands with anyone. Playing a 0 rotates all hands in turn direction!</p>
+        <p><strong>Jump-In:</strong> Play an exact identical card immediately even out of turn!</p>
+      </div>
+
+      <button id="btn-close-rules" class="btn-secondary" style="margin: 0 auto;">
+        Got it!
+      </button>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/audio.js"></script>
+  <script src="/js/cardRenderer.js"></script>
+  <script src="/js/vfx.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
