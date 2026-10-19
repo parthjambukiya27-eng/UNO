@@ -135,16 +135,16 @@ class CardRenderer {
 
     return `
       <div class="player-seat ${turnClass} ${unoClass} ${vulnerableClass} ${selfClass}" id="seat-${player.id}" data-player-id="${player.id}">
-        <div class="seat-turn-ring"></div>
+        ${isCurrentTurn ? '<div class="seat-turn-ring"></div>' : ''}
         <div class="seat-avatar">${player.avatar}</div>
         <div class="seat-info">
           <div class="seat-name">
-            ${player.name}
-            ${player.isHost ? '<span class="host-badge">👑 Host</span>' : ''}
+            ${player.name} ${isSelf ? '<span class="you-tag">(You)</span>' : ''}
+            ${player.isHost ? '<span class="host-badge">HOST</span>' : ''}
           </div>
           <div class="seat-meta">
             <span class="card-count-badge">🃏 ${player.cardCount} cards</span>
-            <span class="seat-score">★ ${player.score} pts</span>
+            <span class="seat-score">${player.score} pts</span>
           </div>
         </div>
         

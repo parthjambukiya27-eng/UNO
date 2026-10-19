@@ -228,33 +228,33 @@
 
         <!-- Bottom Hand Area -->
         <div class="hand-tray-container">
-          <div class="hand-meta-bar">
-            <div id="self-seat-container"></div>
-          </div>
-
           <!-- Curved Hand of Cards -->
           <div id="my-hand-container" class="my-hand-cards"></div>
         </div>
 
       </div>
 
-      <!-- Action Controls Bar (Tactile Push Buttons) -->
+      <!-- Action Controls Bar (Self Profile + Tactile Push Buttons) -->
       <footer class="action-controls-bar">
-        <button id="btn-draw-card" class="btn-tactile">
-          🃏 Draw Card
-        </button>
+        <div id="self-seat-container" class="dock-self-seat"></div>
 
-        <button id="btn-pass-turn" class="btn-tactile" disabled>
-          ⏭ Pass Turn
-        </button>
+        <div class="action-buttons-group">
+          <button id="btn-draw-card" class="btn-tactile">
+            🃏 Draw Card
+          </button>
 
-        <button id="btn-shout-uno" class="btn-uno-shout">
-          UNO!
-        </button>
+          <button id="btn-pass-turn" class="btn-tactile" disabled>
+            ⏭ Pass Turn
+          </button>
 
-        <button id="btn-catch-uno" class="btn-catch-uno" disabled title="Catch an opponent who didn't shout UNO!">
-          🚨 CATCH!
-        </button>
+          <button id="btn-shout-uno" class="btn-uno-shout">
+            UNO!
+          </button>
+
+          <button id="btn-catch-uno" class="btn-catch-uno" disabled title="Catch an opponent who didn't shout UNO!">
+            🚨 CATCH!
+          </button>
+        </div>
       </footer>
 
     </div>
