@@ -44,17 +44,25 @@ function getLocalNetworkIp() {
 
 const localIp = getLocalNetworkIp();
 
-// QR Code API endpoint for instant phone scanning
+// QR Code API endpoint for instant phone scanning (Cloud & LAN compatible)
 app.get('/api/qr/:roomCode', async (req, res) => {
   try {
     const { roomCode } = req.params;
-    const joinUrl = `http://${localIp}:${PORT}/?room=${roomCode.toUpperCase()}`;
+    let baseUrl;
+    if (req.query.origin) {
+      baseUrl = req.query.origin;
+    } else {
+      const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+      const host = req.get('host') || `${localIp}:${PORT}`;
+      baseUrl = `${proto}://${host}`;
+    }
+    const joinUrl = `${baseUrl}/?room=${roomCode.toUpperCase()}`;
     const qrDataUrl = await QRCode.toDataURL(joinUrl, {
       margin: 1,
       width: 250,
       color: {
-        dark: '#ffffff',
-        light: '#111827'
+        dark: '#191716',
+        light: '#ffffff'
       }
     });
     res.json({ url: joinUrl, qr: qrDataUrl });

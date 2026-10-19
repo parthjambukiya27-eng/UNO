@@ -340,7 +340,8 @@ class UnoClientApp {
 
   async loadQrCode() {
     try {
-      const res = await fetch(`/api/qr/${this.roomCode}`);
+      const origin = encodeURIComponent(window.location.origin);
+      const res = await fetch(`/api/qr/${this.roomCode}?origin=${origin}`);
       const data = await res.json();
       const qrImg = document.getElementById('waiting-qr-img');
       const shareUrlInput = document.getElementById('share-url-input');
