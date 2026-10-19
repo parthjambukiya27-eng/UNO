@@ -1,5 +1,15 @@
 // UNO Web Client Controller with Socket.io, Touch Gestures, Drag-and-Drop, and Multi-Device Support
 
+// Set your live Render backend URL here (e.g., 'https://uno-online.onrender.com')
+const RENDER_BACKEND_URL = '';
+
+function getApiBaseUrl() {
+  if (RENDER_BACKEND_URL) return RENDER_BACKEND_URL.replace(/\/$/, '');
+  const saved = localStorage.getItem('uno_backend_url');
+  if (saved) return saved.replace(/\/$/, '');
+  return '';
+}
+
 class UnoClientApp {
   constructor() {
     this.socket = null;
@@ -10,12 +20,13 @@ class UnoClientApp {
     this.isHost = false;
     this.selectedAvatar = '😎';
     this.pendingWildCardId = null;
+    this.apiBase = getApiBaseUrl();
 
     this.init();
   }
 
   init() {
-    this.socket = io();
+    this.socket = this.apiBase ? io(this.apiBase) : io();
     this.bindSocketEvents();
     this.bindDomEvents();
     this.loadSavedProfile();
@@ -54,7 +65,7 @@ class UnoClientApp {
 
   async fetchNetworkInfo() {
     try {
-      const res = await fetch('/api/network-info');
+      const res = await fetch(`${this.apiBase}/api/network-info`);
       const data = await res.json();
       const ipDisplay = document.getElementById('network-ip-display');
       if (ipDisplay && data.localIp !== 'localhost') {
@@ -341,7 +352,7 @@ class UnoClientApp {
   async loadQrCode() {
     try {
       const origin = encodeURIComponent(window.location.origin);
-      const res = await fetch(`/api/qr/${this.roomCode}?origin=${origin}`);
+      const res = await fetch(`${this.apiBase}/api/qr/${this.roomCode}?origin=${origin}`);
       const data = await res.json();
       const qrImg = document.getElementById('waiting-qr-img');
       const shareUrlInput = document.getElementById('share-url-input');
