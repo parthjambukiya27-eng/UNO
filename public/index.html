@@ -9,8 +9,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-  <link rel="stylesheet" href="/css/style.css?v=2">
-  <link rel="stylesheet" href="/css/cards.css?v=2">
+  <link rel="stylesheet" href="/css/style.css?v=3">
+  <link rel="stylesheet" href="/css/cards.css?v=3">
 </head>
 <body>
 
@@ -26,6 +26,28 @@
   <main id="view-lobby" class="view active">
     <div class="lobby-container">
       
+      <!-- Lobby Auth & MongoDB Status Header -->
+      <div id="lobby-auth-bar" class="lobby-auth-bar">
+        <div id="user-logged-out" class="auth-bar-status">
+          <div class="db-status-pill" id="db-status-pill" title="Database status">
+            <span class="status-dot"></span> <span id="db-status-text">Guest Mode</span>
+          </div>
+          <button id="btn-open-auth" class="btn-auth-trigger" type="button">
+            <span>👤</span> Log In / Sign Up
+          </button>
+        </div>
+        <div id="user-logged-in" class="auth-bar-user" style="display: none;">
+          <div class="user-pill">
+            <span id="user-badge-avatar" class="user-avatar-tag">😎</span>
+            <div class="user-meta">
+              <span id="user-badge-name" class="user-name-tag">Player</span>
+              <span id="user-badge-stats" class="user-stats-tag">0 Wins • 0 Pts</span>
+            </div>
+          </div>
+          <button id="btn-auth-logout" class="btn-logout" type="button" title="Log out">Sign Out</button>
+        </div>
+      </div>
+
       <div class="logo-header">
         <div class="uno-brand">
           <span class="uno-brand-letter letter-u">U</span>
@@ -315,9 +337,80 @@
       
       <div id="game-over-scores" class="scores-list"></div>
 
-      <button id="btn-next-round" class="btn-primary" style="margin: 0 auto;">
-        Next Round
-      </button>
+      <div class="modal-actions-game-over" style="display: flex; gap: 12px; justify-content: center; align-items: center; margin-top: 20px; flex-wrap: wrap;">
+        <button id="btn-next-round" class="btn-primary" style="min-width: 140px;">
+          <span>🔁</span> Next Round
+        </button>
+        <button id="btn-game-over-home" class="btn-secondary" style="min-width: 140px;">
+          <span>🏠</span> Home
+        </button>
+      </div>
+      <div id="game-over-waiting-host" style="display: none; margin-top: 10px; font-size: 13px; color: var(--ink-secondary); font-weight: 600;">
+        ⏳ Waiting for host to start next round...
+      </div>
+    </div>
+  </div>
+
+  <!-- Login / Register Authentication Modal -->
+  <div id="modal-auth" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 420px;">
+      <div class="modal-header-tabs">
+        <button id="tab-login" class="auth-tab active" type="button">Log In</button>
+        <button id="tab-register" class="auth-tab" type="button">Create Account</button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="form-login" class="auth-form active">
+        <div class="auth-field">
+          <label class="input-label" for="login-username">Username</label>
+          <input type="text" id="login-username" class="text-input" placeholder="Enter your username" required autocomplete="username">
+        </div>
+        <div class="auth-field" style="margin-top: 12px;">
+          <label class="input-label" for="login-password">Password</label>
+          <input type="password" id="login-password" class="text-input" placeholder="Enter your password" required autocomplete="current-password">
+        </div>
+        <div id="login-error-msg" class="auth-error-banner" style="display: none;"></div>
+        <div class="auth-btn-row" style="margin-top: 18px; display: flex; gap: 10px;">
+          <button type="submit" class="btn-primary" style="flex: 1;">Sign In</button>
+          <button type="button" class="btn-secondary btn-close-auth">Cancel</button>
+        </div>
+      </form>
+
+      <!-- Register Form -->
+      <form id="form-register" class="auth-form" style="display: none;">
+        <div class="auth-field">
+          <label class="input-label" for="reg-username">Choose Username</label>
+          <input type="text" id="reg-username" class="text-input" placeholder="3-15 characters" required minlength="3" maxlength="15" autocomplete="username">
+        </div>
+        <div class="auth-field" style="margin-top: 12px;">
+          <label class="input-label" for="reg-password">Create Password</label>
+          <input type="password" id="reg-password" class="text-input" placeholder="At least 4 characters" required minlength="4" autocomplete="new-password">
+        </div>
+        <div class="auth-field" style="margin-top: 12px;">
+          <label class="input-label">Pick Avatar</label>
+          <div class="auth-avatar-grid">
+            <button type="button" class="auth-avatar-opt selected" data-avatar="😎">😎</button>
+            <button type="button" class="auth-avatar-opt" data-avatar="👑">👑</button>
+            <button type="button" class="auth-avatar-opt" data-avatar="🦊">🦊</button>
+            <button type="button" class="auth-avatar-opt" data-avatar="🤖">🤖</button>
+            <button type="button" class="auth-avatar-opt" data-avatar="🦄">🦄</button>
+            <button type="button" class="auth-avatar-opt" data-avatar="🦖">🦖</button>
+            <button type="button" class="auth-avatar-opt" data-avatar="🐯">🐯</button>
+            <button type="button" class="auth-avatar-opt" data-avatar="👾">👾</button>
+          </div>
+        </div>
+        <div id="register-error-msg" class="auth-error-banner" style="display: none;"></div>
+        <div class="auth-btn-row" style="margin-top: 18px; display: flex; gap: 10px;">
+          <button type="submit" class="btn-primary" style="flex: 1;">Create Account</button>
+          <button type="button" class="btn-secondary btn-close-auth">Cancel</button>
+        </div>
+      </form>
+
+      <div style="margin-top: 14px; text-align: center;">
+        <button type="button" class="btn-link btn-close-auth" style="font-size: 13px; color: var(--ink-secondary); background: none; border: none; cursor: pointer; text-decoration: underline;">
+          Continue as Guest
+        </button>
+      </div>
     </div>
   </div>
 
@@ -360,6 +453,6 @@
   <script src="/js/audio.js"></script>
   <script src="/js/cardRenderer.js"></script>
   <script src="/js/vfx.js"></script>
-  <script src="/js/app.js"></script>
+  <script src="/js/app.js?v=3"></script>
 </body>
 </html>

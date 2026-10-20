@@ -4,9 +4,10 @@
 const RENDER_BACKEND_URL = 'https://uno-4qds.onrender.com';
 
 function getApiBaseUrl() {
+  if (typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http')) {
+    return window.location.origin;
+  }
   if (RENDER_BACKEND_URL) return RENDER_BACKEND_URL.replace(/\/$/, '');
-  const saved = localStorage.getItem('uno_backend_url');
-  if (saved) return saved.replace(/\/$/, '');
   return '';
 }
 
@@ -19,6 +20,8 @@ class UnoClientApp {
     this.myHand = [];
     this.isHost = false;
     this.selectedAvatar = '😎';
+    this.regAvatar = '😎';
+    this.currentUser = null;
     this.pendingWildCardId = null;
     this.apiBase = getApiBaseUrl();
 
@@ -29,6 +32,7 @@ class UnoClientApp {
     this.socket = this.apiBase ? io(this.apiBase) : io();
     this.bindSocketEvents();
     this.bindDomEvents();
+    this.initAuth();
     this.loadSavedProfile();
     this.checkUrlParams();
     this.fetchNetworkInfo();
@@ -214,7 +218,7 @@ class UnoClientApp {
     // Leave Game
     document.getElementById('btn-leave-game')?.addEventListener('click', () => {
       if (confirm('Are you sure you want to leave this game?')) {
-        window.location.href = '/';
+        this.leaveToHome();
       }
     });
 
@@ -525,8 +529,9 @@ class UnoClientApp {
     // Attach card event listeners and realistic curved fan layout
     handContainer.querySelectorAll('.uno-card').forEach((cardEl, index) => {
       const cardId = cardEl.dataset.cardId;
-      const angle = (index - (total - 1) / 2) * 2.5;
-      const yOffset = Math.pow(Math.abs(index - (total - 1) / 2), 1.2) * 1.8;
+      const angle = total > 1 ? (index - (total - 1) / 2) * Math.min(2.4, 28 / total) : 0;
+      const yOffset = Math.pow(Math.abs(index - (total - 1) / 2), 1.1) * 0.9;
+      cardEl.style.transformOrigin = '50% 90%';
       cardEl.style.transform = `rotate(${angle}deg) translateY(${yOffset}px)`;
 
       cardEl.setAttribute('draggable', 'true');
@@ -739,15 +744,268 @@ class UnoClientApp {
     `).join('');
 
     const nextBtn = document.getElementById('btn-next-round');
+    const homeBtn = document.getElementById('btn-game-over-home');
+    const waitingHostHint = document.getElementById('game-over-waiting-host');
+
     if (nextBtn) {
-      nextBtn.style.display = this.isHost ? 'block' : 'none';
+      nextBtn.style.display = this.isHost ? 'inline-flex' : 'none';
       nextBtn.onclick = () => {
         modal.classList.remove('is-open');
         this.startGame();
       };
     }
 
+    if (waitingHostHint) {
+      waitingHostHint.style.display = (!this.isHost && state.status !== 'game_over') ? 'block' : 'none';
+    }
+
+    if (homeBtn) {
+      homeBtn.onclick = () => {
+        modal.classList.remove('is-open');
+        this.leaveToHome();
+      };
+    }
+
+    // If logged in, record match stats to MongoDB
+    if (this.currentUser) {
+      const isWinner = state.winnerId === this.playerId;
+      const selfPlayer = state.players.find(p => p.id === this.playerId);
+      const score = selfPlayer ? selfPlayer.score : 0;
+      this.recordUserGameStats(isWinner, score);
+    }
+
     modal.classList.add('is-open');
+  }
+
+  leaveToHome() {
+    if (this.socket) {
+      try {
+        if (this.roomCode && this.playerId) {
+          this.socket.emit('leave_room', { roomCode: this.roomCode, playerId: this.playerId });
+        }
+        this.socket.disconnect();
+      } catch (e) {}
+    }
+    window.location.href = '/';
+  }
+
+  // --------------------------------------------------------------------------
+  // USER AUTH & MONGODB PROFILE INTEGRATION
+  // --------------------------------------------------------------------------
+  initAuth() {
+    this.checkDbStatus();
+    this.loadSavedUser();
+
+    // Open & Close Auth Modal
+    document.getElementById('btn-open-auth')?.addEventListener('click', () => {
+      this.openAuthModal();
+    });
+
+    document.querySelectorAll('.btn-close-auth').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.getElementById('modal-auth')?.classList.remove('is-open');
+      });
+    });
+
+    // Tab switcher (Log In vs Create Account)
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+    const formLogin = document.getElementById('form-login');
+    const formRegister = document.getElementById('form-register');
+
+    tabLogin?.addEventListener('click', () => {
+      tabLogin.classList.add('active');
+      tabRegister?.classList.remove('active');
+      formLogin.style.display = 'block';
+      formRegister.style.display = 'none';
+    });
+
+    tabRegister?.addEventListener('click', () => {
+      tabRegister.classList.add('active');
+      tabLogin?.classList.remove('active');
+      formRegister.style.display = 'block';
+      formLogin.style.display = 'none';
+    });
+
+    // Avatar selector inside register form
+    document.querySelectorAll('.auth-avatar-opt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.auth-avatar-opt').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        this.regAvatar = btn.dataset.avatar || '😎';
+      });
+    });
+
+    // Handle Login Submit
+    formLogin?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value;
+      const errBanner = document.getElementById('login-error-msg');
+      if (errBanner) errBanner.style.display = 'none';
+
+      try {
+        const res = await fetch(`${this.apiBase}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'Login failed');
+        }
+
+        this.setCurrentUser(data.user);
+        document.getElementById('modal-auth')?.classList.remove('is-open');
+        this.showToast(`👋 Welcome back, ${data.user.displayName || data.user.username}!`, 'success');
+      } catch (err) {
+        if (errBanner) {
+          errBanner.textContent = err.message;
+          errBanner.style.display = 'block';
+        }
+      }
+    });
+
+    // Handle Register Submit
+    formRegister?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('reg-username').value.trim();
+      const password = document.getElementById('reg-password').value;
+      const errBanner = document.getElementById('register-error-msg');
+      if (errBanner) errBanner.style.display = 'none';
+
+      try {
+        const res = await fetch(`${this.apiBase}/api/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, avatar: this.regAvatar })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'Registration failed');
+        }
+
+        this.setCurrentUser(data.user);
+        document.getElementById('modal-auth')?.classList.remove('is-open');
+        this.showToast(`🎉 Account created! Welcome, ${data.user.displayName || data.user.username}!`, 'success');
+      } catch (err) {
+        if (errBanner) {
+          errBanner.textContent = err.message;
+          errBanner.style.display = 'block';
+        }
+      }
+    });
+
+    // Handle Logout
+    document.getElementById('btn-auth-logout')?.addEventListener('click', () => {
+      this.logoutUser();
+    });
+  }
+
+  async checkDbStatus() {
+    try {
+      const res = await fetch(`${this.apiBase}/api/auth/status`);
+      const data = await res.json();
+      const pill = document.getElementById('db-status-pill');
+      const text = document.getElementById('db-status-text');
+      if (pill && text) {
+        if (data.database === 'connected') {
+          pill.classList.add('is-connected');
+          pill.title = 'MongoDB is connected and syncing player profiles';
+          text.textContent = 'MongoDB Online';
+        } else {
+          pill.classList.remove('is-connected');
+          pill.title = 'Running in offline guest mode. Configure MONGODB_URI in .env to connect MongoDB';
+          text.textContent = 'Guest Mode';
+        }
+      }
+    } catch (e) {
+      console.log('DB status check skipped');
+    }
+  }
+
+  loadSavedUser() {
+    try {
+      const saved = localStorage.getItem('uno_user');
+      if (saved) {
+        const user = JSON.parse(saved);
+        this.setCurrentUser(user, false);
+      }
+    } catch (e) {
+      localStorage.removeItem('uno_user');
+    }
+  }
+
+  setCurrentUser(user, updateInputs = true) {
+    this.currentUser = user;
+    localStorage.setItem('uno_user', JSON.stringify(user));
+
+    const loggedOutEl = document.getElementById('user-logged-out');
+    const loggedInEl = document.getElementById('user-logged-in');
+    const avatarBadge = document.getElementById('user-badge-avatar');
+    const nameBadge = document.getElementById('user-badge-name');
+    const statsBadge = document.getElementById('user-badge-stats');
+
+    if (loggedOutEl) loggedOutEl.style.display = 'none';
+    if (loggedInEl) loggedInEl.style.display = 'flex';
+
+    if (avatarBadge) avatarBadge.textContent = user.avatar || '😎';
+    if (nameBadge) nameBadge.textContent = user.displayName || user.username;
+    if (statsBadge) {
+      const wins = user.stats?.wins || 0;
+      const score = user.stats?.totalScore || 0;
+      statsBadge.textContent = `${wins} Wins • ${score} Pts`;
+    }
+
+    if (updateInputs) {
+      const nameInput = document.getElementById('player-name-input');
+      if (nameInput) nameInput.value = user.displayName || user.username;
+      if (user.avatar) this.selectAvatar(user.avatar);
+      this.saveProfile(user.displayName || user.username, user.avatar);
+    }
+  }
+
+  logoutUser() {
+    this.currentUser = null;
+    localStorage.removeItem('uno_user');
+
+    const loggedOutEl = document.getElementById('user-logged-out');
+    const loggedInEl = document.getElementById('user-logged-in');
+    if (loggedOutEl) loggedOutEl.style.display = 'flex';
+    if (loggedInEl) loggedInEl.style.display = 'none';
+
+    this.showToast('Logged out. Playing as Guest.');
+  }
+
+  openAuthModal() {
+    const modal = document.getElementById('modal-auth');
+    if (modal) {
+      document.getElementById('login-error-msg').style.display = 'none';
+      document.getElementById('register-error-msg').style.display = 'none';
+      modal.classList.add('is-open');
+    }
+  }
+
+  async recordUserGameStats(won, score) {
+    if (!this.currentUser) return;
+    try {
+      const res = await fetch(`${this.apiBase}/api/auth/record-game`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: this.currentUser.username,
+          won,
+          score
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.stats) {
+        this.currentUser.stats = data.stats;
+        this.setCurrentUser(this.currentUser, false);
+      }
+    } catch (e) {
+      console.log('Failed to record game stats:', e);
+    }
   }
 
   handleSoundEffect(data) {

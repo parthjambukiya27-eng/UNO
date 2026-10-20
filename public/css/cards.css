@@ -55,11 +55,10 @@
 
 @keyframes playablePulse {
   0%, 100% {
-    box-shadow: 0 8px 20px rgba(45, 35, 25, 0.15), 0 0 8px rgba(255, 84, 0, 0.3);
+    box-shadow: 0 8px 20px rgba(45, 35, 25, 0.15), 0 0 10px rgba(255, 120, 0, 0.45);
   }
   50% {
-    box-shadow: 0 12px 28px rgba(255, 84, 0, 0.38), 0 0 18px rgba(255, 84, 0, 0.5);
-    transform: translateY(-6px);
+    box-shadow: 0 14px 30px rgba(255, 100, 0, 0.45), 0 0 22px rgba(255, 150, 0, 0.75);
   }
 }
 

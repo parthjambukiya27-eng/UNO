@@ -1,5 +1,4 @@
-// UNO Real-Time Multiplayer Server with Socket.io, Network LAN Sharing, and Bot AI
-
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -8,6 +7,8 @@ const os = require('os');
 const QRCode = require('qrcode');
 const cors = require('cors');
 
+const { connectDB } = require('./config/db');
+const authRoutes = require('./routes/auth');
 const UnoGame = require('./game/UnoGame');
 const BotAI = require('./game/BotAI');
 
@@ -22,8 +23,12 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3000;
 
+// Initialize Database connection
+connectDB();
+
 app.use(cors());
 app.use(express.json());
+app.use('/api/auth', authRoutes);
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Store active games: roomCode -> UnoGame instance
