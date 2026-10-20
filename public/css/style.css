@@ -1349,13 +1349,12 @@ body {
   backdrop-filter: blur(8px);
   border: 1px solid var(--border-medium);
   border-radius: 14px;
+  gap: 10px;
 }
 
 .auth-bar-status, .auth-bar-user {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
   gap: 10px;
 }
 

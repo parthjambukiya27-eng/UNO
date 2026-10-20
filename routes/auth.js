@@ -1,17 +1,31 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
-const { getDbStatus } = require('../config/db');
+const { connectDB, getDbStatus } = require('../config/db');
 
 // In-memory fallback if MongoDB is not running yet
 const memoryUsers = new Map();
 
-// Check DB & Auth Status
-router.get('/status', (req, res) => {
-  const db = getDbStatus();
+// Helper to ensure MongoDB connection is active if URI is available
+async function ensureDb() {
+  let db = getDbStatus();
+  if (!db.isConnected && process.env.MONGODB_URI) {
+    await connectDB();
+    db = getDbStatus();
+  }
+  return db;
+}
+
+// Check DB & Auth Status with live diagnostic details
+router.get('/status', async (req, res) => {
+  const db = await ensureDb();
   res.json({
     database: db.isConnected ? 'connected' : 'offline',
-    message: db.isConnected ? 'MongoDB connected' : 'MongoDB offline - fallback guest mode active'
+    hasMongoUri: db.hasMongoUri,
+    lastError: db.lastError || null,
+    message: db.isConnected
+      ? 'MongoDB connected'
+      : (db.hasMongoUri ? `MongoDB offline: ${db.lastError}` : 'MONGODB_URI not set on server - fallback guest mode active')
   });
 });
 
@@ -32,7 +46,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 4 characters' });
     }
 
-    const { isConnected } = getDbStatus();
+    const { isConnected } = await ensureDb();
 
     if (isConnected) {
       const existing = await User.findOne({ username: cleanUsername });
@@ -89,7 +103,7 @@ router.post('/login', async (req, res) => {
     }
 
     const cleanUsername = username.trim().toLowerCase();
-    const { isConnected } = getDbStatus();
+    const { isConnected } = await ensureDb();
 
     if (isConnected) {
       const user = await User.findOne({ username: cleanUsername });
@@ -135,7 +149,7 @@ router.post('/record-game', async (req, res) => {
     if (!username) return res.status(400).json({ error: 'Username required' });
 
     const cleanUsername = username.trim().toLowerCase();
-    const { isConnected } = getDbStatus();
+    const { isConnected } = await ensureDb();
 
     if (isConnected) {
       const user = await User.findOne({ username: cleanUsername });
