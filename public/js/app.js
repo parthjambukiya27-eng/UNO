@@ -4,11 +4,37 @@
 const RENDER_BACKEND_URL = 'https://uno-4qds.onrender.com';
 
 function getApiBaseUrl() {
-  if (typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http')) {
+  if (typeof window === 'undefined' || !window.location) {
+    return RENDER_BACKEND_URL ? RENDER_BACKEND_URL.replace(/\/$/, '') : '';
+  }
+
+  const hostname = window.location.hostname;
+
+  // Local development / LAN environments: use current server
+  if (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname.startsWith('192.168.') ||
+    hostname.startsWith('10.') ||
+    hostname.endsWith('.local')
+  ) {
     return window.location.origin;
   }
-  if (RENDER_BACKEND_URL) return RENDER_BACKEND_URL.replace(/\/$/, '');
-  return '';
+
+  // If directly visiting the live Render domain, use relative origin
+  if (RENDER_BACKEND_URL && window.location.origin === RENDER_BACKEND_URL.replace(/\/$/, '')) {
+    return window.location.origin;
+  }
+
+  // When deployed to static host (like Vercel, Netlify, GitHub Pages), route all API calls to Render backend!
+  if (RENDER_BACKEND_URL) {
+    return RENDER_BACKEND_URL.replace(/\/$/, '');
+  }
+
+  const saved = localStorage.getItem('uno_backend_url');
+  if (saved) return saved.replace(/\/$/, '');
+
+  return window.location.origin;
 }
 
 class UnoClientApp {
@@ -850,7 +876,13 @@ class UnoClientApp {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })
         });
-        const data = await res.json();
+        const contentType = res.headers.get('content-type') || '';
+        let data;
+        if (contentType.includes('application/json')) {
+          data = await res.json();
+        } else {
+          throw new Error('Backend server is temporarily unavailable. Please try again in a moment.');
+        }
         if (!res.ok || !data.success) {
           throw new Error(data.error || 'Login failed');
         }
@@ -880,7 +912,13 @@ class UnoClientApp {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password, avatar: this.regAvatar })
         });
-        const data = await res.json();
+        const contentType = res.headers.get('content-type') || '';
+        let data;
+        if (contentType.includes('application/json')) {
+          data = await res.json();
+        } else {
+          throw new Error('Backend server is temporarily unavailable. Please try again in a moment.');
+        }
         if (!res.ok || !data.success) {
           throw new Error(data.error || 'Registration failed');
         }
@@ -905,6 +943,8 @@ class UnoClientApp {
   async checkDbStatus() {
     try {
       const res = await fetch(`${this.apiBase}/api/auth/status`);
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) return;
       const data = await res.json();
       const pill = document.getElementById('db-status-pill');
       const text = document.getElementById('db-status-text');
@@ -998,6 +1038,8 @@ class UnoClientApp {
           score
         })
       });
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) return;
       const data = await res.json();
       if (data.success && data.stats) {
         this.currentUser.stats = data.stats;
