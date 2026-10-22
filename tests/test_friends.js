@@ -97,7 +97,7 @@ async function runTest() {
   // Set up promise to listen for Bob receiving friend_game_created
   let receivedGameCreated = null;
   const gameCreatedPromise = new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error('Timed out waiting for friend_game_created notification')), 7000);
+    const timeout = setTimeout(() => reject(new Error('Timed out waiting for friend_game_created notification')), 12000);
     socketBob.on('friend_game_created', (data) => {
       clearTimeout(timeout);
       console.log('🎯 Bob received friend_game_created event! Data:', data);

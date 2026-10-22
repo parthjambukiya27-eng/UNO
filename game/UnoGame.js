@@ -32,6 +32,8 @@ class UnoGame {
     this.pendingSwap = null;       // { playerId, card } for 7-rule
     this.hasDrawnThisTurn = false;
     this.lastAction = null;
+    this.winnerId = null;
+    this.winnerName = null;
     this.unoCallers = new Set();   // Players who called UNO
     this.unoVulnerable = null;     // Player who has 1 card but hasn't called UNO yet
 
@@ -100,6 +102,8 @@ class UnoGame {
     this.currentTurnIndex = 0;
     this.stackedDrawCount = 0;
     this.hasDrawnThisTurn = false;
+    this.winnerId = null;
+    this.winnerName = null;
     this.pendingWildAction = null;
     this.pendingChallenge = null;
     this.pendingSwap = null;
@@ -633,6 +637,8 @@ class UnoGame {
     });
 
     winner.score += roundPoints;
+    this.winnerId = winner.id;
+    this.winnerName = winner.name;
 
     this.lastAction = {
       type: 'ROUND_WON',
@@ -680,6 +686,8 @@ class UnoGame {
     return {
       roomCode: this.roomCode,
       status: this.status,
+      winnerId: this.winnerId || this.lastAction?.winnerId || null,
+      winnerName: this.winnerName || this.lastAction?.winnerName || null,
       currentColor: this.currentColor,
       direction: this.direction,
       currentTurnIndex: this.currentTurnIndex,

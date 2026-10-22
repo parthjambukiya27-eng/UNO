@@ -99,9 +99,8 @@ class UnoClientApp {
     try {
       const res = await fetch(`${this.apiBase}/api/network-info`);
       const data = await res.json();
-      const ipDisplay = document.getElementById('network-ip-display');
-      if (ipDisplay && data.localIp !== 'localhost') {
-        ipDisplay.textContent = `Play together on Wi-Fi: ${data.networkUrl}`;
+      if (data && data.networkUrl) {
+        this.networkUrl = data.networkUrl;
       }
     } catch (e) {
       console.log('Network info fetch skipped');
@@ -846,10 +845,23 @@ class UnoClientApp {
 
     // If logged in, record match stats to MongoDB
     if (this.currentUser) {
-      const isWinner = state.winnerId === this.playerId;
+      const winnerId = state.winnerId || state.lastAction?.winnerId;
       const selfPlayer = state.players.find(p => p.id === this.playerId);
-      const score = selfPlayer ? selfPlayer.score : 0;
-      this.recordUserGameStats(isWinner, score);
+      const isWinner = Boolean(
+        (winnerId && winnerId === this.playerId) ||
+        (selfPlayer && (selfPlayer.cardCount === 0 || selfPlayer.hand?.length === 0))
+      );
+
+      const pointsToRecord = (state.lastAction?.pointsEarned && isWinner)
+        ? state.lastAction.pointsEarned
+        : (isWinner ? (selfPlayer?.score || 50) : 0);
+
+      // Prevent duplicate calls for the same round completion
+      const roundKey = `${this.roomCode || 'game'}_${state.status}_${winnerId || 'now'}_${selfPlayer?.score || 0}`;
+      if (this.lastRecordedGameKey !== roundKey) {
+        this.lastRecordedGameKey = roundKey;
+        this.recordUserGameStats(isWinner, pointsToRecord);
+      }
     }
 
     modal.classList.add('is-open');
@@ -1001,27 +1013,14 @@ class UnoClientApp {
   }
 
   async checkDbStatus() {
+    // Status check for logging
     try {
       const res = await fetch(`${this.apiBase}/api/auth/status`);
       const contentType = res.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) return;
       const data = await res.json();
-      const pill = document.getElementById('db-status-pill');
-      const text = document.getElementById('db-status-text');
-      if (pill && text) {
-        if (data.database === 'connected') {
-          pill.classList.add('is-connected');
-          pill.title = 'MongoDB is connected and syncing player profiles';
-          text.textContent = 'MongoDB Online';
-        } else {
-          pill.classList.remove('is-connected');
-          pill.title = 'Running in offline guest mode. Configure MONGODB_URI in .env to connect MongoDB';
-          text.textContent = 'Guest Mode';
-        }
-      }
-    } catch (e) {
-      console.log('DB status check skipped');
-    }
+      this.isDbConnected = data.database === 'connected';
+    } catch (e) {}
   }
 
   loadSavedUser() {
@@ -1110,8 +1109,8 @@ class UnoClientApp {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: this.currentUser.username,
-          won,
-          score
+          won: Boolean(won),
+          score: Math.max(0, parseInt(score, 10) || 0)
         })
       });
       const contentType = res.headers.get('content-type') || '';
@@ -1120,6 +1119,9 @@ class UnoClientApp {
       if (data.success && data.stats) {
         this.currentUser.stats = data.stats;
         this.setCurrentUser(this.currentUser, false);
+        if (won) {
+          this.showToast(`🏆 VICTORY! Total Wins: ${data.stats.wins} • Score: ${data.stats.totalScore}`, 'success');
+        }
       }
     } catch (e) {
       console.log('Failed to record game stats:', e);
@@ -1324,11 +1326,12 @@ class UnoClientApp {
     });
 
     document.getElementById('footer-link-party')?.addEventListener('click', () => {
-      const badge = document.getElementById('network-ip-display');
-      if (badge) {
-        badge.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        badge.style.transform = 'scale(1.05)';
-        setTimeout(() => { badge.style.transform = ''; }, 600);
+      const shareUrl = window.location.origin;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(shareUrl);
+        this.showToast('📋 Game URL copied! Share with friends on your Wi-Fi.', 'success');
+      } else {
+        this.showToast(`Share URL: ${shareUrl}`);
       }
     });
 

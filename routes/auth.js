@@ -149,18 +149,20 @@ router.post('/record-game', async (req, res) => {
     if (!username) return res.status(400).json({ error: 'Username required' });
 
     const cleanUsername = username.trim().toLowerCase();
+    const isWon = Boolean(won === true || won === 'true' || won === 1 || won === '1');
+    const points = Math.max(0, parseInt(score, 10) || 0);
     const { isConnected } = await ensureDb();
 
     if (isConnected) {
       const user = await User.findOne({ username: cleanUsername });
       if (user) {
         user.stats.gamesPlayed += 1;
-        if (won) {
+        if (isWon) {
           user.stats.wins += 1;
         } else {
           user.stats.losses += 1;
         }
-        user.stats.totalScore += (score || 0);
+        user.stats.totalScore += points;
         await user.save();
         return res.json({ success: true, stats: user.stats });
       }
@@ -168,9 +170,9 @@ router.post('/record-game', async (req, res) => {
       const stored = memoryUsers.get(cleanUsername);
       if (stored) {
         stored.stats.gamesPlayed += 1;
-        if (won) stored.stats.wins += 1;
+        if (isWon) stored.stats.wins += 1;
         else stored.stats.losses += 1;
-        stored.stats.totalScore += (score || 0);
+        stored.stats.totalScore += points;
         return res.json({ success: true, stats: stored.stats });
       }
     }
