@@ -1017,13 +1017,6 @@ body {
   margin: 0 auto;
 }
 
-@media (max-width: 640px) {
-  .action-controls-bar {
-    flex-direction: column;
-    gap: 8px;
-    padding: 8px;
-  }
-}
 
 .btn-tactile {
   background: #faf8f5;
@@ -2414,25 +2407,587 @@ body:has(#view-game.active) .app-site-footer {
 }
 
 @media (max-width: 640px) {
+  /* 1. Global Touch Ergonomics */
+  body {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* 2. Compact Modern Header */
   .header-container {
-    height: 64px;
+    height: 54px;
+    padding: 0 12px;
+  }
+
+  .header-brand {
+    gap: 8px;
+  }
+
+  .header-brand-cards {
+    gap: 1.5px;
+  }
+
+  .header-brand-cards .header-card {
+    width: 20px;
+    height: 26px;
+    font-size: 14px;
+    border-radius: 5px;
+  }
+
+  .brand-title-row {
+    gap: 6px;
+  }
+
+  .brand-title {
+    font-size: 19px;
+  }
+
+  .brand-live-badge {
+    padding: 2px 6px;
+    font-size: 9px;
   }
 
   .header-brand-text .brand-subtitle {
     display: none;
   }
 
-  .db-status-pill {
+  .header-actions {
+    gap: 8px;
+  }
+
+  .header-audio-controls {
+    gap: 4px;
+  }
+
+  .header-icon-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+    border-radius: 8px;
+  }
+
+  .btn-header-auth {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 8px;
+    gap: 4px;
+  }
+
+  .user-pill-btn {
+    padding: 3px 8px 3px 5px;
+    gap: 6px;
+    border-radius: 12px;
+    max-width: 130px;
+  }
+
+  .user-avatar-tag {
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+  }
+
+  .user-name-tag {
+    font-size: 11.5px;
+    max-width: 65px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .user-stats-tag {
+    display: none !important;
+  }
+
+  .user-pill-arrow {
     display: none;
   }
 
+  #btn-auth-logout {
+    display: none !important;
+  }
+
+  /* 3. Lobby Mobile Layout */
+  .lobby-container {
+    width: 94%;
+    margin: 12px auto 24px;
+    padding: 22px 14px;
+    border-radius: 16px;
+  }
+
+  .logo-header {
+    margin-bottom: 16px;
+  }
+
+  .uno-brand {
+    gap: 3px;
+    margin-bottom: 4px;
+  }
+
+  .uno-brand-letter {
+    width: 38px;
+    height: 46px;
+    font-size: 26px;
+    border-radius: 8px;
+  }
+
+  .uno-tagline {
+    font-size: 12px;
+    margin-top: 2px;
+  }
+
+  .profile-section {
+    margin-bottom: 18px;
+  }
+
+  .input-label {
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+
+  .text-input {
+    padding: 11px 14px;
+    font-size: 14px;
+    border-radius: 10px;
+  }
+
+  .avatar-grid {
+    gap: 6px;
+    justify-content: center;
+  }
+
+  .avatar-option {
+    width: 38px;
+    height: 38px;
+    font-size: 19px;
+    border-radius: 10px;
+  }
+
+  .modes-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .btn-primary, .btn-secondary, .btn-solo {
+    padding: 13px 16px;
+    font-size: 14px;
+    border-radius: 10px;
+    min-height: 48px;
+  }
+
+  .join-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .join-input-group .btn-secondary {
+    width: 100%;
+    height: 46px;
+  }
+
+  #join-room-input {
+    font-size: 18px;
+    letter-spacing: 4px;
+    text-align: center;
+    font-weight: 800;
+    height: 46px;
+  }
+
+  .rules-accordion {
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin-top: 14px;
+  }
+
+  /* 4. Waiting Room Mobile Layout */
+  .waiting-container {
+    width: 94%;
+    margin: 12px auto 20px;
+    padding: 20px 14px;
+    border-radius: 16px;
+  }
+
+  .waiting-container h2 {
+    font-size: 22px !important;
+  }
+
+  .room-code-badge {
+    padding: 10px 14px;
+    border-radius: 12px;
+    margin: 10px auto;
+  }
+
+  .code-title {
+    font-size: 10px;
+  }
+
+  .code-value {
+    font-size: 34px;
+    letter-spacing: 5px;
+  }
+
+  .qr-box {
+    width: 140px;
+    height: 140px;
+    padding: 6px;
+    margin: 6px auto;
+  }
+
+  .share-bar {
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .share-bar .btn-secondary {
+    width: 100%;
+    padding: 10px;
+  }
+
+  .waiting-players-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin: 8px 0 14px;
+  }
+
+  .waiting-player-card {
+    padding: 8px 10px;
+    font-size: 12px;
+    gap: 6px;
+    border-radius: 10px;
+  }
+
+  .host-controls {
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .host-controls button {
+    width: 100%;
+    min-height: 46px;
+    font-size: 14px;
+  }
+
+  /* 5. GAME ARENA (PHONE FULLSCREEN & ERGONOMIC TOUCH PLAY) */
+  .game-arena {
+    height: 100dvh;
+    max-height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .game-header {
+    height: 44px;
+    padding: 0 10px;
+  }
+
+  .room-tag {
+    padding: 2px 7px;
+    font-size: 11px;
+    border-radius: 6px;
+  }
+
+  .status-ticker {
+    font-size: 11px;
+    max-width: 44vw;
+  }
+
+  .game-header-right {
+    gap: 6px;
+  }
+
+  .game-header-right .icon-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+    border-radius: 8px;
+  }
+
+  .table-viewport {
+    padding: 4px 6px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Opponents Horizontal Scroll Reel */
+  .opponents-container {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 6px;
+    padding: 2px 4px;
+    justify-content: flex-start;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    margin: 0 auto;
+    z-index: 20;
+  }
+
+  .opponents-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  .player-seat {
+    min-width: 84px;
+    padding: 4px 8px;
+    border-radius: 10px;
+    gap: 5px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+
+  .player-seat .seat-avatar {
+    width: 26px;
+    height: 26px;
+    font-size: 15px;
+    border-radius: 6px;
+  }
+
+  .player-seat .seat-name {
+    font-size: 11px;
+    max-width: 65px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .player-seat .seat-meta {
+    font-size: 9px;
+    gap: 4px;
+  }
+
+  .seat-uno-pill {
+    font-size: 9px;
+    padding: 1px 5px;
+    top: -6px;
+    right: -4px;
+  }
+
+  .seat-catch-pill {
+    font-size: 9px;
+    padding: 1px 6px;
+    top: -6px;
+    right: -4px;
+  }
+
+  /* Felt Table (Center Play Area) */
+  .game-table {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    transform: none !important;
+    width: 96% !important;
+    max-width: 350px !important;
+    height: 125px !important;
+    margin: 6px auto !important;
+    border-radius: 14px;
+    padding: 4px;
+    border-width: 1.5px;
+  }
+
+  .game-table .uno-card {
+    width: 60px !important;
+    height: 90px !important;
+    border-radius: 7px;
+    padding: 2px;
+  }
+
+  .center-arena {
+    gap: 14px;
+  }
+
+  .slot-label {
+    font-size: 9px;
+    letter-spacing: 1px;
+  }
+
+  /* Hand Area */
+  .hand-tray-container {
+    padding: 0 4px 2px;
+    width: 100%;
+    z-index: 30;
+  }
+
+  .hand-meta-bar {
+    padding: 0 8px;
+    margin: 0 auto 2px;
+  }
+
+  .hand-tray-title {
+    font-size: 11px;
+  }
+
+  .my-cards-count-badge {
+    padding: 2px 7px;
+    font-size: 10px;
+  }
+
+  .my-hand-cards {
+    padding: 16px 8px 10px;
+    min-height: 120px;
+    overflow-x: auto;
+    overflow-y: visible;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    justify-content: center;
+    max-width: 100vw;
+  }
+
+  .my-hand-cards .uno-card {
+    width: 64px !important;
+    height: 96px !important;
+    border-radius: 8px;
+    margin-left: -24px !important;
+  }
+
+  .my-hand-cards .uno-card:first-child {
+    margin-left: 0 !important;
+  }
+
+  /* Compact Bottom Action Dock */
+  .action-controls-bar {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    background: #ffffff;
+    border-top: 1px solid var(--border-light);
+    z-index: 40;
+    min-height: 48px;
+    gap: 6px;
+  }
+
+  .dock-self-seat {
+    flex-shrink: 0;
+  }
+
+  .dock-self-seat .player-seat {
+    min-width: auto;
+    max-width: 105px;
+    padding: 3px 6px;
+    border-radius: 8px;
+    gap: 4px;
+    background: #faf8f5;
+    border: 1px solid var(--border-medium);
+  }
+
+  .dock-self-seat .seat-avatar {
+    width: 22px;
+    height: 22px;
+    font-size: 13px;
+    border-radius: 5px;
+  }
+
+  .dock-self-seat .seat-name {
+    font-size: 10px;
+    max-width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dock-self-seat .seat-meta {
+    font-size: 9px;
+  }
+
+  .action-buttons-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0;
+    flex: 1;
+    justify-content: flex-end;
+  }
+
+  .btn-tactile {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 8px;
+    height: 38px;
+    gap: 4px;
+    box-shadow: 0 2px 0 #ded6c8;
+  }
+
+  .btn-uno-shout {
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 900;
+    height: 38px;
+    border-radius: 16px;
+  }
+
+  .btn-catch-uno {
+    padding: 6px 9px;
+    font-size: 11px;
+    height: 38px;
+    border-radius: 8px;
+  }
+
+  /* 6. Modals on Mobile */
+  .modal-card {
+    padding: 20px 16px;
+    width: 92%;
+    max-width: 380px;
+    border-radius: 16px;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+
+  .modal-title {
+    font-size: 20px;
+  }
+
+  .wild-color-grid {
+    gap: 8px;
+  }
+
+  .wild-quad-btn {
+    height: 64px;
+    font-size: 15px;
+    border-radius: 12px;
+  }
+
+  .friends-tabs {
+    gap: 4px;
+  }
+
+  .friends-tab-btn {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  #friend-room-alert {
+    width: 95%;
+    top: 8px;
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+
+  .btn-direct-join {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+
+  /* 7. Footer Mobile */
   .feature-pills-grid {
     grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .footer-grid {
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: 20px;
   }
 
   .footer-col.col-brand {
@@ -2442,6 +2997,7 @@ body:has(#view-game.active) .app-site-footer {
   .footer-bottom-flex {
     flex-direction: column;
     align-items: flex-start;
+    gap: 12px;
   }
 }
 

@@ -604,10 +604,14 @@ class UnoClientApp {
     }).join('');
 
     // Attach card event listeners and realistic curved fan layout
+    const isMobile = window.innerWidth <= 640;
+    const spreadFactor = isMobile ? Math.min(1.4, 14 / total) : Math.min(2.4, 28 / total);
+    const yMultiplier = isMobile ? 0.35 : 0.9;
+
     handContainer.querySelectorAll('.uno-card').forEach((cardEl, index) => {
       const cardId = cardEl.dataset.cardId;
-      const angle = total > 1 ? (index - (total - 1) / 2) * Math.min(2.4, 28 / total) : 0;
-      const yOffset = Math.pow(Math.abs(index - (total - 1) / 2), 1.1) * 0.9;
+      const angle = total > 1 ? (index - (total - 1) / 2) * spreadFactor : 0;
+      const yOffset = Math.pow(Math.abs(index - (total - 1) / 2), 1.1) * yMultiplier;
       cardEl.style.transformOrigin = '50% 90%';
       cardEl.style.transform = `rotate(${angle}deg) translateY(${yOffset}px)`;
 
