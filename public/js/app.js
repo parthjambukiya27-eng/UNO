@@ -50,6 +50,8 @@ class UnoClientApp {
     this.currentUser = null;
     this.pendingWildCardId = null;
     this.apiBase = getApiBaseUrl();
+    this.friendsList = [];
+    this.activeFriendRooms = new Map();
 
     this.init();
   }
@@ -132,6 +134,31 @@ class UnoClientApp {
 
     this.socket.on('connect', () => {
       console.log('Connected to UNO server.');
+      if (this.currentUser) {
+        this.emitUserOnline();
+        this.fetchUserFriends();
+      }
+    });
+
+    // Real-time friend game events
+    this.socket.on('friend_game_created', (data) => {
+      this.handleFriendGameCreated(data);
+    });
+
+    this.socket.on('friend_game_closed', (data) => {
+      this.handleFriendGameClosed(data);
+    });
+
+    this.socket.on('friend_game_started', (data) => {
+      this.handleFriendGameStarted(data);
+    });
+
+    this.socket.on('friend_presence_update', (data) => {
+      this.handleFriendPresenceUpdate(data);
+    });
+
+    this.socket.on('friend_game_invite', (data) => {
+      this.handleFriendGameInvite(data);
     });
   }
 
@@ -220,26 +247,10 @@ class UnoClientApp {
       });
     });
 
-    // Audio & Music Toggles
-    document.getElementById('btn-toggle-sound')?.addEventListener('click', (e) => {
-      window.unoAudio.soundEnabled = !window.unoAudio.soundEnabled;
-      e.currentTarget.classList.toggle('is-muted', !window.unoAudio.soundEnabled);
-      this.showToast(window.unoAudio.soundEnabled ? '🔊 Sound FX Enabled' : '🔇 Sound FX Muted');
-    });
-
-    document.getElementById('btn-toggle-music')?.addEventListener('click', (e) => {
-      const active = window.unoAudio.toggleMusic();
-      e.currentTarget.classList.toggle('is-active', active);
-      this.showToast(active ? '🎵 Arcade Lounge Music Playing' : '🎵 Music Paused');
-    });
-
-    // How to Play Modal
-    document.getElementById('btn-rules')?.addEventListener('click', () => {
-      document.getElementById('modal-rules').classList.add('is-open');
-    });
-    document.getElementById('btn-close-rules')?.addEventListener('click', () => {
-      document.getElementById('modal-rules').classList.remove('is-open');
-    });
+    // Header, Footer, and Navigation Events
+    this.bindHeaderAndFooterEvents();
+    this.bindKeyboardShortcuts();
+    this.syncAudioUI();
 
     // Leave Game
     document.getElementById('btn-leave-game')?.addEventListener('click', () => {
@@ -268,7 +279,11 @@ class UnoClientApp {
   }
 
   showJoinTab() {
-    document.getElementById('tab-join')?.click();
+    const input = document.getElementById('join-room-input');
+    if (input) {
+      input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      input.focus();
+    }
   }
 
   getPlayerName() {
@@ -333,6 +348,41 @@ class UnoClientApp {
     });
   }
 
+  joinRoomDirect(roomCode) {
+    if (!roomCode) return;
+    const cleanCode = roomCode.toUpperCase().trim();
+    const joinInput = document.getElementById('join-room-input');
+    if (joinInput) joinInput.value = cleanCode;
+
+    // Dismiss floating alert if open
+    const alertEl = document.getElementById('friend-room-alert');
+    if (alertEl) alertEl.style.display = 'none';
+
+    // Close friends modal if open
+    document.getElementById('modal-friends')?.classList.remove('is-open');
+
+    const playerName = this.getPlayerName();
+    this.saveProfile(playerName, this.selectedAvatar);
+
+    this.showToast(`Joining friend's game (Room ${cleanCode})...`);
+
+    this.socket.emit('join_room', {
+      roomCode: cleanCode,
+      playerName,
+      avatar: this.selectedAvatar
+    }, (res) => {
+      if (res.success) {
+        this.roomCode = res.roomCode;
+        this.playerId = res.playerId;
+        this.isHost = false;
+        this.showWaitingRoom();
+        this.showToast(`🎉 Connected to Room ${cleanCode}!`, 'success');
+      } else {
+        this.showToast(res.error || 'Failed to join room', 'error');
+      }
+    });
+  }
+
   startSoloPlay() {
     const playerName = this.getPlayerName();
     this.saveProfile(playerName, this.selectedAvatar);
@@ -363,6 +413,7 @@ class UnoClientApp {
   }
 
   showWaitingRoom(shareUrl = null) {
+    document.body.classList.remove('in-game');
     document.getElementById('view-lobby').classList.remove('active');
     document.getElementById('view-game').classList.remove('active');
     document.getElementById('view-waiting').classList.add('active');
@@ -430,6 +481,7 @@ class UnoClientApp {
     }
 
     // Switch to game arena view
+    document.body.classList.add('in-game');
     document.getElementById('view-lobby').classList.remove('active');
     document.getElementById('view-waiting').classList.remove('active');
     document.getElementById('view-game').classList.add('active');
@@ -822,9 +874,17 @@ class UnoClientApp {
     this.checkDbStatus();
     this.loadSavedUser();
 
-    // Open & Close Auth Modal
-    document.getElementById('btn-open-auth')?.addEventListener('click', () => {
-      this.openAuthModal();
+    // Open Auth Modal from header and footer
+    ['btn-open-auth', 'btn-header-login', 'footer-link-login'].forEach(id => {
+      document.getElementById(id)?.addEventListener('click', () => {
+        this.openAuthModal('login');
+      });
+    });
+
+    ['btn-header-register', 'footer-link-register'].forEach(id => {
+      document.getElementById(id)?.addEventListener('click', () => {
+        this.openAuthModal('register');
+      });
     });
 
     document.querySelectorAll('.btn-close-auth').forEach(btn => {
@@ -1003,6 +1063,9 @@ class UnoClientApp {
       if (user.avatar) this.selectAvatar(user.avatar);
       this.saveProfile(user.displayName || user.username, user.avatar);
     }
+
+    this.emitUserOnline();
+    this.fetchUserFriends();
   }
 
   logoutUser() {
@@ -1014,14 +1077,27 @@ class UnoClientApp {
     if (loggedOutEl) loggedOutEl.style.display = 'flex';
     if (loggedInEl) loggedInEl.style.display = 'none';
 
+    this.friendsList = [];
+    this.activeFriendRooms.clear();
+    this.updateFriendsBadge();
+    this.renderLobbyActiveMatches();
+    this.renderFriendsList([]);
+
     this.showToast('Logged out. Playing as Guest.');
   }
 
-  openAuthModal() {
+  openAuthModal(initialTab = 'login') {
     const modal = document.getElementById('modal-auth');
     if (modal) {
-      document.getElementById('login-error-msg').style.display = 'none';
-      document.getElementById('register-error-msg').style.display = 'none';
+      const err1 = document.getElementById('login-error-msg');
+      const err2 = document.getElementById('register-error-msg');
+      if (err1) err1.style.display = 'none';
+      if (err2) err2.style.display = 'none';
+      if (initialTab === 'register') {
+        document.getElementById('tab-register')?.click();
+      } else {
+        document.getElementById('tab-login')?.click();
+      }
       modal.classList.add('is-open');
     }
   }
@@ -1112,6 +1188,764 @@ class UnoClientApp {
       toast.classList.add('fade-out');
       setTimeout(() => toast.remove(), 400);
     }, 2800);
+  }
+
+  // --------------------------------------------------------------------------
+  // AUDIO SYNCHRONIZATION
+  // --------------------------------------------------------------------------
+  syncAudioUI() {
+    const soundOn = window.unoAudio?.soundEnabled ?? true;
+    const musicOn = window.unoAudio?.musicEnabled ?? false;
+
+    // Sound toggle buttons
+    ['btn-toggle-sound', 'header-sound-toggle', 'mob-sound-toggle'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.toggle('is-muted', !soundOn);
+        if (id === 'mob-sound-toggle') {
+          el.textContent = soundOn ? '🔊 Sound FX (ON)' : '🔇 Sound FX (OFF)';
+        } else {
+          el.textContent = soundOn ? '🔊' : '🔇';
+        }
+      }
+    });
+
+    // Music toggle buttons
+    ['btn-toggle-music', 'header-music-toggle', 'mob-music-toggle'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.toggle('is-active', musicOn);
+        if (id === 'mob-music-toggle') {
+          el.textContent = musicOn ? '🎵 Arcade Music (ON)' : '🎵 Arcade Music (OFF)';
+        }
+      }
+    });
+  }
+
+  toggleSound() {
+    if (!window.unoAudio) return;
+    window.unoAudio.soundEnabled = !window.unoAudio.soundEnabled;
+    this.syncAudioUI();
+    this.showToast(window.unoAudio.soundEnabled ? '🔊 Sound FX Enabled' : '🔇 Sound FX Muted');
+  }
+
+  toggleMusic() {
+    if (!window.unoAudio) return;
+    const active = window.unoAudio.toggleMusic();
+    this.syncAudioUI();
+    this.showToast(active ? '🎵 Arcade Lounge Music Playing' : '🎵 Music Paused');
+  }
+
+  // --------------------------------------------------------------------------
+  // HEADER, FOOTER, AND SHORTCUTS BINDINGS
+  // --------------------------------------------------------------------------
+  bindHeaderAndFooterEvents() {
+    // 1. Brand Logo click -> scroll to top
+    document.getElementById('header-brand-logo')?.addEventListener('click', (e) => {
+      if (document.getElementById('view-lobby')?.classList.contains('active')) {
+        e.preventDefault();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+
+    // 2. Rules openers
+    ['btn-rules', 'nav-btn-rules', 'mob-btn-rules', 'footer-link-rules', 'footer-link-actions', 'footer-link-catch'].forEach(id => {
+      document.getElementById(id)?.addEventListener('click', () => {
+        document.getElementById('modal-rules')?.classList.add('is-open');
+        document.getElementById('mobile-nav-drawer')?.classList.remove('is-open');
+      });
+    });
+
+    document.getElementById('btn-close-rules')?.addEventListener('click', () => {
+      document.getElementById('modal-rules')?.classList.remove('is-open');
+    });
+
+    // 3. Modes scroll
+    ['nav-btn-modes', 'mob-btn-modes'].forEach(id => {
+      document.getElementById(id)?.addEventListener('click', () => {
+        document.querySelector('.modes-grid')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.getElementById('mobile-nav-drawer')?.classList.remove('is-open');
+      });
+    });
+
+    // 4. House Rules scroll & toggle
+    ['nav-btn-houserules', 'mob-btn-houserules', 'footer-link-stacking'].forEach(id => {
+      document.getElementById(id)?.addEventListener('click', () => {
+        const accordion = document.querySelector('.rules-accordion');
+        if (accordion) {
+          accordion.open = true;
+          accordion.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        document.getElementById('mobile-nav-drawer')?.classList.remove('is-open');
+      });
+    });
+
+    // 5. Shortcuts modal opener & closer
+    ['nav-btn-shortcuts', 'mob-btn-shortcuts', 'footer-link-shortcuts'].forEach(id => {
+      document.getElementById(id)?.addEventListener('click', () => {
+        document.getElementById('modal-shortcuts')?.classList.add('is-open');
+        document.getElementById('mobile-nav-drawer')?.classList.remove('is-open');
+      });
+    });
+
+    document.getElementById('btn-close-shortcuts')?.addEventListener('click', () => {
+      document.getElementById('modal-shortcuts')?.classList.remove('is-open');
+    });
+
+    // 6. Audio controls
+    ['btn-toggle-sound', 'header-sound-toggle', 'mob-sound-toggle'].forEach(id => {
+      document.getElementById(id)?.addEventListener('click', () => this.toggleSound());
+    });
+
+    ['btn-toggle-music', 'header-music-toggle', 'mob-music-toggle'].forEach(id => {
+      document.getElementById(id)?.addEventListener('click', () => this.toggleMusic());
+    });
+
+    // 7. Mobile menu toggle
+    document.getElementById('btn-mobile-menu')?.addEventListener('click', () => {
+      document.getElementById('mobile-nav-drawer')?.classList.toggle('is-open');
+    });
+
+    // 8. Footer quick actions
+    document.getElementById('footer-link-create')?.addEventListener('click', () => {
+      this.createRoom();
+    });
+
+    document.getElementById('footer-link-join')?.addEventListener('click', () => {
+      const joinInput = document.getElementById('join-room-input');
+      if (joinInput) {
+        joinInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        joinInput.focus();
+      }
+    });
+
+    document.getElementById('footer-link-solo')?.addEventListener('click', () => {
+      this.startSoloPlay();
+    });
+
+    document.getElementById('footer-link-party')?.addEventListener('click', () => {
+      const badge = document.getElementById('network-ip-display');
+      if (badge) {
+        badge.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        badge.style.transform = 'scale(1.05)';
+        setTimeout(() => { badge.style.transform = ''; }, 600);
+      }
+    });
+
+    document.getElementById('footer-btn-share')?.addEventListener('click', () => {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(window.location.origin);
+        this.showToast('📋 Game URL copied to clipboard! Share with friends.', 'success');
+      } else {
+        this.showToast(`Share URL: ${window.location.origin}`);
+      }
+    });
+
+    document.getElementById('btn-back-to-top')?.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // 9. Profile modal triggers & actions
+    ['btn-header-profile', 'footer-link-profile'].forEach(id => {
+      document.getElementById(id)?.addEventListener('click', () => {
+        this.openProfileModal();
+      });
+    });
+
+    document.getElementById('btn-close-profile')?.addEventListener('click', () => {
+      document.getElementById('modal-profile')?.classList.remove('is-open');
+    });
+
+    document.getElementById('btn-profile-signout')?.addEventListener('click', () => {
+      document.getElementById('modal-profile')?.classList.remove('is-open');
+      this.logoutUser();
+    });
+
+    // Profile modal avatar options
+    document.querySelectorAll('.profile-avatar-opt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.profile-avatar-opt').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        const avatar = btn.dataset.avatar || '😎';
+        this.selectAvatar(avatar);
+        if (this.currentUser) {
+          this.currentUser.avatar = avatar;
+          this.setCurrentUser(this.currentUser, true);
+          const bigAv = document.getElementById('profile-modal-avatar');
+          if (bigAv) bigAv.textContent = avatar;
+        }
+        this.showToast(`Avatar updated to ${avatar}!`);
+      });
+    });
+
+    // Close modals on clicking backdrop
+    ['modal-profile', 'modal-shortcuts', 'modal-friends'].forEach(id => {
+      const modal = document.getElementById(id);
+      modal?.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.remove('is-open');
+      });
+    });
+
+    // 10. Friends Hub Modal Events
+    ['nav-btn-friends', 'mob-btn-friends', 'footer-link-friends'].forEach(id => {
+      document.getElementById(id)?.addEventListener('click', () => {
+        this.openFriendsModal();
+        document.getElementById('mobile-nav-drawer')?.classList.remove('is-open');
+      });
+    });
+
+    document.getElementById('btn-invite-friends')?.addEventListener('click', () => {
+      this.openFriendsModal('my');
+    });
+
+    document.getElementById('btn-close-friends')?.addEventListener('click', () => {
+      document.getElementById('modal-friends')?.classList.remove('is-open');
+    });
+
+    document.getElementById('btn-friend-alert-close')?.addEventListener('click', () => {
+      const alertEl = document.getElementById('friend-room-alert');
+      if (alertEl) alertEl.style.display = 'none';
+    });
+
+    document.getElementById('tab-friends-my')?.addEventListener('click', () => {
+      document.getElementById('tab-friends-my')?.classList.add('active');
+      document.getElementById('tab-friends-search')?.classList.remove('active');
+      document.getElementById('panel-friends-list').style.display = 'block';
+      document.getElementById('panel-friends-search').style.display = 'none';
+      this.fetchUserFriends();
+    });
+
+    document.getElementById('tab-friends-search')?.addEventListener('click', () => {
+      document.getElementById('tab-friends-search')?.classList.add('active');
+      document.getElementById('tab-friends-my')?.classList.remove('active');
+      document.getElementById('panel-friends-search').style.display = 'block';
+      document.getElementById('panel-friends-list').style.display = 'none';
+      document.getElementById('input-search-friends')?.focus();
+    });
+
+    document.getElementById('btn-go-search-friends')?.addEventListener('click', () => {
+      document.getElementById('tab-friends-search')?.click();
+    });
+
+    // Friends Search handler
+    const doSearch = () => {
+      const input = document.getElementById('input-search-friends');
+      if (input) this.searchUsers(input.value);
+    };
+
+    document.getElementById('btn-do-search-friends')?.addEventListener('click', doSearch);
+    document.getElementById('input-search-friends')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        doSearch();
+      }
+    });
+
+    let searchTimer = null;
+    document.getElementById('input-search-friends')?.addEventListener('input', (e) => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        this.searchUsers(e.target.value);
+      }, 350);
+    });
+
+    document.getElementById('btn-friends-login')?.addEventListener('click', () => {
+      document.getElementById('modal-friends')?.classList.remove('is-open');
+      this.openAuthModal('login');
+    });
+
+    document.getElementById('btn-friends-register')?.addEventListener('click', () => {
+      document.getElementById('modal-friends')?.classList.remove('is-open');
+      this.openAuthModal('register');
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // KEYBOARD CONTROLS (TACTILE HOTKEYS)
+  // --------------------------------------------------------------------------
+  bindKeyboardShortcuts() {
+    window.addEventListener('keydown', (e) => {
+      // Don't intercept if user is typing in an input
+      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+
+      const code = e.code;
+      const key = e.key.toLowerCase();
+
+      // Escape key: close open modals & mobile drawer
+      if (code === 'Escape' || key === 'escape') {
+        document.querySelectorAll('.modal-backdrop.is-open').forEach(m => m.classList.remove('is-open'));
+        document.getElementById('mobile-nav-drawer')?.classList.remove('is-open');
+        return;
+      }
+
+      // Check if active game table is visible
+      const isGameActive = document.getElementById('view-game')?.classList.contains('active');
+
+      if (isGameActive) {
+        // Space or 'D' -> Draw card
+        if (code === 'Space' || key === 'd') {
+          e.preventDefault();
+          this.drawCard();
+          return;
+        }
+
+        // 'P' or Enter -> Pass turn
+        if (key === 'p' || code === 'Enter') {
+          const passBtn = document.getElementById('btn-pass-turn');
+          if (passBtn && !passBtn.disabled) {
+            e.preventDefault();
+            this.passTurn();
+          }
+          return;
+        }
+
+        // 'U' -> Shout UNO!
+        if (key === 'u') {
+          e.preventDefault();
+          this.callUno();
+          return;
+        }
+
+        // 'C' -> Catch UNO!
+        if (key === 'c') {
+          const catchBtn = document.getElementById('btn-catch-uno');
+          if (catchBtn && !catchBtn.disabled) {
+            e.preventDefault();
+            this.catchUno();
+          }
+          return;
+        }
+      }
+
+      // 'M' -> Toggle Music
+      if (key === 'm') {
+        this.toggleMusic();
+        return;
+      }
+
+      // 'S' -> Toggle Sound FX
+      if (key === 's') {
+        this.toggleSound();
+        return;
+      }
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // PLAYER PROFILE & DETAILED STATS MODAL
+  // --------------------------------------------------------------------------
+  openProfileModal() {
+    if (!this.currentUser) {
+      this.openAuthModal('login');
+      this.showToast('Log in or sign up to view your permanent stats!', 'warning');
+      return;
+    }
+
+    const modal = document.getElementById('modal-profile');
+    if (!modal) return;
+
+    const u = this.currentUser;
+    const stats = u.stats || {};
+    const games = stats.gamesPlayed || 0;
+    const wins = stats.wins || 0;
+    const losses = stats.losses || 0;
+    const score = stats.totalScore || 0;
+    const rate = games > 0 ? `${Math.round((wins / games) * 100)}%` : '0%';
+
+    const avatarEl = document.getElementById('profile-modal-avatar');
+    const nameEl = document.getElementById('profile-modal-name');
+    const usernameEl = document.getElementById('profile-modal-username');
+    const statGames = document.getElementById('profile-stat-games');
+    const statWins = document.getElementById('profile-stat-wins');
+    const statLosses = document.getElementById('profile-stat-losses');
+    const statRate = document.getElementById('profile-stat-rate');
+    const statScore = document.getElementById('profile-stat-score');
+
+    if (avatarEl) avatarEl.textContent = u.avatar || '😎';
+    if (nameEl) nameEl.textContent = u.displayName || u.username;
+    if (usernameEl) usernameEl.textContent = `@${u.username}`;
+    if (statGames) statGames.textContent = games;
+    if (statWins) statWins.textContent = wins;
+    if (statLosses) statLosses.textContent = losses;
+    if (statRate) statRate.textContent = rate;
+    if (statScore) statScore.textContent = score;
+
+    // Highlight active avatar in profile modal
+    document.querySelectorAll('.profile-avatar-opt').forEach(b => {
+      b.classList.toggle('selected', b.dataset.avatar === (u.avatar || '😎'));
+    });
+
+    modal.classList.add('is-open');
+  }
+
+  // --------------------------------------------------------------------------
+  // FRIENDS SYSTEM & REAL-TIME DIRECT JOIN METHODS
+  // --------------------------------------------------------------------------
+  emitUserOnline() {
+    if (!this.currentUser || !this.socket) return;
+    this.socket.emit('user_online', {
+      username: this.currentUser.username,
+      displayName: this.currentUser.displayName || this.currentUser.username,
+      avatar: this.currentUser.avatar || '😎',
+      friends: this.friendsList
+    });
+  }
+
+  async fetchUserFriends() {
+    if (!this.currentUser) return;
+    try {
+      const res = await fetch(`${this.apiBase}/api/auth/friends?username=${encodeURIComponent(this.currentUser.username)}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.friends)) {
+        this.friendsList = data.friends;
+        this.updateFriendsBadge();
+        this.queryFriendsPresence();
+      }
+    } catch (e) {
+      console.log('Friends fetch error:', e);
+    }
+  }
+
+  queryFriendsPresence() {
+    if (!this.socket || this.friendsList.length === 0) {
+      this.renderFriendsList([]);
+      return;
+    }
+    const usernames = this.friendsList.map(f => f.username);
+    this.socket.emit('get_friends_presence', { friendUsernames: usernames }, (presenceList) => {
+      this.renderFriendsList(presenceList || []);
+    });
+  }
+
+  handleFriendGameCreated(data) {
+    if (!data || !data.roomCode) return;
+    this.activeFriendRooms.set(data.roomCode, data);
+
+    // If current user is already in a game, don't interrupt
+    const isGameActive = document.getElementById('view-game')?.classList.contains('active');
+    if (isGameActive) return;
+
+    // 1. Show the top floating banner
+    const alertEl = document.getElementById('friend-room-alert');
+    const avEl = document.getElementById('friend-alert-avatar');
+    const nameEl = document.getElementById('friend-alert-name');
+    const codeEl = document.getElementById('friend-alert-code');
+    const joinBtn = document.getElementById('btn-friend-alert-join');
+
+    if (alertEl && nameEl && codeEl) {
+      if (avEl) avEl.textContent = data.hostAvatar || '👑';
+      nameEl.textContent = data.hostName || data.hostUsername;
+      codeEl.textContent = data.roomCode;
+      alertEl.style.display = 'block';
+
+      if (joinBtn) {
+        joinBtn.onclick = () => this.joinRoomDirect(data.roomCode);
+      }
+    }
+
+    // 2. Render in Lobby active friend matches card
+    this.renderLobbyActiveMatches();
+
+    // 3. Highlight friends badge in header
+    const badge = document.getElementById('header-friends-badge');
+    if (badge) {
+      badge.classList.add('has-match');
+      badge.style.display = 'inline-flex';
+    }
+
+    // 4. Sound & toast
+    this.showToast(`👑 ${data.hostName || 'Friend'} created Room ${data.roomCode}! Click to Join.`, 'success');
+  }
+
+  handleFriendGameClosed(data) {
+    if (!data || !data.roomCode) return;
+    this.activeFriendRooms.delete(data.roomCode);
+    const codeEl = document.getElementById('friend-alert-code');
+    if (codeEl && codeEl.textContent === data.roomCode) {
+      const alertEl = document.getElementById('friend-room-alert');
+      if (alertEl) alertEl.style.display = 'none';
+    }
+    this.renderLobbyActiveMatches();
+    this.queryFriendsPresence();
+  }
+
+  handleFriendGameStarted(data) {
+    if (!data || !data.roomCode) return;
+    this.activeFriendRooms.delete(data.roomCode);
+    const alertEl = document.getElementById('friend-room-alert');
+    const codeEl = document.getElementById('friend-alert-code');
+    if (codeEl && codeEl.textContent === data.roomCode && alertEl) {
+      alertEl.style.display = 'none';
+    }
+    this.renderLobbyActiveMatches();
+    this.queryFriendsPresence();
+  }
+
+  handleFriendPresenceUpdate() {
+    this.queryFriendsPresence();
+  }
+
+  handleFriendGameInvite(data) {
+    if (!data || !data.roomCode) return;
+    this.showToast(`👑 ${data.hostName} invited you to play UNO in Room ${data.roomCode}!`, 'warning');
+    this.handleFriendGameCreated(data);
+  }
+
+  renderLobbyActiveMatches() {
+    const container = document.getElementById('active-friend-matches-card');
+    const list = document.getElementById('friend-matches-list');
+    if (!container || !list) return;
+
+    if (this.activeFriendRooms.size === 0) {
+      container.style.display = 'none';
+      list.innerHTML = '';
+      return;
+    }
+
+    container.style.display = 'block';
+    list.innerHTML = Array.from(this.activeFriendRooms.values()).map(r => `
+      <div class="friend-match-row">
+        <div class="friend-match-meta">
+          <span class="friend-match-avatar">${r.hostAvatar || '👑'}</span>
+          <div>
+            <div class="friend-match-name">${r.hostName || r.hostUsername}</div>
+            <div class="friend-match-room-tag">Room Code: <strong style="color: var(--uno-red); letter-spacing: 1px;">${r.roomCode}</strong> (Waiting)</div>
+          </div>
+        </div>
+        <button class="btn-row-join" onclick="window.gameApp.joinRoomDirect('${r.roomCode}')">
+          <span>⚡</span> Join Game
+        </button>
+      </div>
+    `).join('');
+  }
+
+  renderFriendsList(presenceList) {
+    const container = document.getElementById('friends-list-container');
+    const emptyState = document.getElementById('friends-empty-state');
+    const totalCount = document.getElementById('friends-total-count');
+    if (totalCount) totalCount.textContent = this.friendsList.length;
+
+    if (!this.currentUser) {
+      document.getElementById('friends-guest-notice').style.display = 'block';
+      if (container) container.innerHTML = '';
+      if (emptyState) emptyState.style.display = 'none';
+      return;
+    }
+
+    document.getElementById('friends-guest-notice').style.display = 'none';
+
+    if (this.friendsList.length === 0) {
+      if (container) container.innerHTML = '';
+      if (emptyState) emptyState.style.display = 'block';
+      return;
+    }
+
+    if (emptyState) emptyState.style.display = 'none';
+
+    const presenceMap = new Map();
+    if (Array.isArray(presenceList)) {
+      presenceList.forEach(p => presenceMap.set(p.username.toLowerCase(), p));
+    }
+
+    // Sort: Hosting friends first, then online, then offline
+    const sorted = [...this.friendsList].sort((a, b) => {
+      const pA = presenceMap.get(a.username.toLowerCase()) || {};
+      const pB = presenceMap.get(b.username.toLowerCase()) || {};
+      const scoreA = pA.roomCode ? 2 : (pA.isOnline ? 1 : 0);
+      const scoreB = pB.roomCode ? 2 : (pB.isOnline ? 1 : 0);
+      return scoreB - scoreA;
+    });
+
+    if (container) {
+      container.innerHTML = sorted.map(f => {
+        const pres = presenceMap.get(f.username.toLowerCase()) || {};
+        const isOnline = pres.isOnline;
+        const roomCode = pres.roomCode;
+        const status = pres.status || 'offline';
+
+        let statusText = 'Offline';
+        let statusClass = '';
+        let actionBtn = '';
+
+        if (roomCode && status === 'waiting') {
+          statusText = `🟢 Hosting Room ${roomCode}`;
+          statusClass = 'status-hosting';
+          actionBtn = `<button class="btn-friend-join" onclick="window.gameApp.joinRoomDirect('${roomCode}')">⚡ Join</button>`;
+        } else if (status === 'in_progress') {
+          statusText = '🟡 In Match';
+        } else if (isOnline) {
+          statusText = '🟢 Online in Lobby';
+          if (this.roomCode && this.isHost) {
+            actionBtn = `<button class="btn-friend-invite" onclick="window.gameApp.inviteFriend('${f.username}', '${this.roomCode}')">👑 Invite</button>`;
+          }
+        }
+
+        return `
+          <div class="friend-item-card">
+            <div class="friend-item-left">
+              <div class="friend-avatar-wrapper">
+                <span class="friend-item-avatar">${f.avatar || '😎'}</span>
+                <span class="friend-online-dot ${isOnline ? (roomCode ? 'is-hosting' : 'is-online') : ''}"></span>
+              </div>
+              <div class="friend-item-info">
+                <span class="friend-item-name">${f.displayName || f.username}</span>
+                <span class="friend-item-status ${statusClass}">${statusText}</span>
+              </div>
+            </div>
+            <div class="friend-item-actions">
+              ${actionBtn}
+              <button class="btn-remove-friend" title="Remove Friend" onclick="window.gameApp.removeFriend('${f.username}')">✕</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  updateFriendsBadge() {
+    const badge = document.getElementById('header-friends-badge');
+    if (badge) {
+      if (this.friendsList.length > 0) {
+        badge.textContent = this.friendsList.length;
+        badge.style.display = 'inline-flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  }
+
+  inviteFriend(friendUsername, roomCode) {
+    if (!this.socket || !friendUsername || !roomCode) return;
+    this.socket.emit('invite_friend', { toUsername: friendUsername, roomCode }, (res) => {
+      if (res?.success) {
+        this.showToast(`📨 Sent invite to ${friendUsername}!`, 'success');
+      } else {
+        this.showToast(res?.error || 'Could not send invite.', 'warning');
+      }
+    });
+  }
+
+  openFriendsModal(tab = 'my') {
+    const modal = document.getElementById('modal-friends');
+    if (!modal) return;
+
+    if (!this.currentUser) {
+      document.getElementById('friends-guest-notice').style.display = 'block';
+      document.getElementById('panel-friends-list').style.display = 'none';
+      document.getElementById('panel-friends-search').style.display = 'none';
+      modal.classList.add('is-open');
+      return;
+    }
+
+    document.getElementById('friends-guest-notice').style.display = 'none';
+    if (tab === 'search') {
+      document.getElementById('tab-friends-search')?.click();
+    } else {
+      document.getElementById('tab-friends-my')?.click();
+    }
+
+    this.fetchUserFriends();
+    modal.classList.add('is-open');
+  }
+
+  async searchUsers(query) {
+    const q = (query || '').trim();
+    const resultsContainer = document.getElementById('friends-search-results');
+    if (!resultsContainer) return;
+
+    if (q.length < 2) {
+      resultsContainer.innerHTML = '<div class="search-hint">Type at least 2 characters to search for registered players.</div>';
+      return;
+    }
+
+    resultsContainer.innerHTML = '<div class="search-hint">🔍 Searching players...</div>';
+
+    try {
+      const cur = this.currentUser ? this.currentUser.username : '';
+      const res = await fetch(`${this.apiBase}/api/auth/search-users?q=${encodeURIComponent(q)}&current=${encodeURIComponent(cur)}`);
+      const data = await res.json();
+
+      if (!data.success || !Array.isArray(data.users) || data.users.length === 0) {
+        resultsContainer.innerHTML = '<div class="search-hint">No players found matching that name.</div>';
+        return;
+      }
+
+      const friendUsernames = new Set(this.friendsList.map(f => f.username.toLowerCase()));
+
+      resultsContainer.innerHTML = data.users.map(u => {
+        const isFriend = friendUsernames.has(u.username.toLowerCase());
+        return `
+          <div class="search-result-item">
+            <div class="friend-item-left">
+              <span class="friend-item-avatar">${u.avatar || '😎'}</span>
+              <div class="friend-item-info">
+                <span class="friend-item-name">${u.displayName || u.username}</span>
+                <span class="friend-item-status">@${u.username} • 🏆 ${u.wins || 0} Wins</span>
+              </div>
+            </div>
+            <div>
+              ${isFriend ? `
+                <button class="btn-add-friend-action is-added" disabled>✓ Friends</button>
+              ` : `
+                <button class="btn-add-friend-action" onclick="window.gameApp.addFriend('${u.username}')">+ Add Friend</button>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('');
+    } catch (e) {
+      resultsContainer.innerHTML = '<div class="search-hint">Search error. Please try again.</div>';
+    }
+  }
+
+  async addFriend(friendUsername) {
+    if (!this.currentUser) return;
+    try {
+      const res = await fetch(`${this.apiBase}/api/auth/add-friend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: this.currentUser.username,
+          friendUsername: friendUsername
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.showToast(data.message || `Added ${friendUsername}!`, 'success');
+        await this.fetchUserFriends();
+        const searchInput = document.getElementById('input-search-friends');
+        if (searchInput && searchInput.value.trim()) {
+          this.searchUsers(searchInput.value.trim());
+        }
+      } else {
+        this.showToast(data.error || 'Failed to add friend', 'error');
+      }
+    } catch (e) {
+      this.showToast('Network error adding friend', 'error');
+    }
+  }
+
+  async removeFriend(friendUsername) {
+    if (!this.currentUser) return;
+    if (!confirm(`Remove ${friendUsername} from your friends?`)) return;
+
+    try {
+      const res = await fetch(`${this.apiBase}/api/auth/remove-friend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: this.currentUser.username,
+          friendUsername: friendUsername
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.showToast(`Removed ${friendUsername} from friends`);
+        await this.fetchUserFriends();
+      }
+    } catch (e) {
+      this.showToast('Network error removing friend', 'error');
+    }
   }
 }
 

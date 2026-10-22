@@ -29,6 +29,12 @@ const UserSchema = new mongoose.Schema({
     losses: { type: Number, default: 0 },
     totalScore: { type: Number, default: 0 }
   },
+  friends: [{
+    username: { type: String, required: true },
+    displayName: { type: String, default: '' },
+    avatar: { type: String, default: '😎' },
+    addedAt: { type: Date, default: Date.now }
+  }],
   createdAt: {
     type: Date,
     default: Date.now
@@ -59,6 +65,7 @@ UserSchema.methods.toSafeObject = function () {
     displayName: this.displayName || this.username,
     avatar: this.avatar,
     stats: this.stats,
+    friends: this.friends || [],
     createdAt: this.createdAt
   };
 };

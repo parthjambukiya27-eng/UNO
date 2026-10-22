@@ -60,6 +60,31 @@ A high-definition, real-time multiplayer **UNO** game built for playing across p
   - **Jump-In:** Play an identical card (color AND number/symbol) instantly, even out of turn!
   - **Draw-to-Match:** Keep drawing until you get a playable card.
 
+### 6. 👥 Friends System & One-Click Direct Join
+- **Player Search & Friends List:**
+  - Search any registered player by username or display name with live instant search.
+  - Mutual friend connections stored persistently in MongoDB (with automatic in-memory fallback).
+  - Detailed player cards displaying win statistics, avatars, and live presence.
+- **Real-Time Online Presence:**
+  - Dynamic presence indicators: 🟢 Online in Lobby, 🟢 Hosting Room [CODE], 🟡 In Match, and Offline.
+- **⚡ Instant One-Click Direct Game Join:**
+  - When a host creates a game room, all online friends receive an instant floating banner notification:
+    `🎮 Friend [Host Name] created a game! Room: [CODE] [⚡ Join Game Now]`
+  - Friends can click **[⚡ Join Game Now]** to immediately jump directly into the room without typing any codes!
+  - **Lobby Active Friend Matches:** Lobby view dynamically displays cards for all active friend rooms with one-click direct join buttons.
+  - **In-Room Friend Invites:** Hosts in a waiting room can click `[👥 Invite Online Friends]` to send instant invitations.
+
+### 7. 🌟 Premium Header & Footer Experience
+- **Modern Sticky Header:**
+  - Brand UNO logo with animated badge, smooth navigation to Modes, Rules, Tactile Shortcuts, and Friends Hub (with live notification counter).
+  - Profile chip with avatar, win rate, and stats modal.
+  - Audio and Music ambient sound toggle switches.
+- **Feature-Rich Footer:**
+  - Quick game launcher buttons (Create Room, Join by Code, Solo vs AI, Party LAN).
+  - Quick rules and house rules reference links.
+  - Instant Clipboard Share Game URL button.
+  - Back to Top smooth scroll button.
+
 ---
 
 ## 🚀 Quick Start Guide

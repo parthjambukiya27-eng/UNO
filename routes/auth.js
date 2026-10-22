@@ -181,4 +181,224 @@ router.post('/record-game', async (req, res) => {
   }
 });
 
+// Search registered users
+router.get('/search-users', async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    const current = (req.query.current || '').trim().toLowerCase();
+    if (!q || q.length < 2) {
+      return res.json({ success: true, users: [] });
+    }
+
+    const { isConnected } = await ensureDb();
+    let foundUsers = [];
+
+    if (isConnected) {
+      const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped, 'i');
+      const list = await User.find({
+        $and: [
+          { username: { $ne: current } },
+          { $or: [{ username: regex }, { displayName: regex }] }
+        ]
+      })
+      .select('username displayName avatar stats')
+      .limit(10);
+
+      foundUsers = list.map(u => ({
+        username: u.username,
+        displayName: u.displayName || u.username,
+        avatar: u.avatar || '😎',
+        wins: u.stats?.wins || 0,
+        totalScore: u.stats?.totalScore || 0
+      }));
+    } else {
+      for (const [key, val] of memoryUsers.entries()) {
+        if (key === current) continue;
+        if (key.includes(q.toLowerCase()) || (val.displayName || '').toLowerCase().includes(q.toLowerCase())) {
+          foundUsers.push({
+            username: val.username,
+            displayName: val.displayName || val.username,
+            avatar: val.avatar || '😎',
+            wins: val.stats?.wins || 0,
+            totalScore: val.stats?.totalScore || 0
+          });
+          if (foundUsers.length >= 10) break;
+        }
+      }
+    }
+
+    res.json({ success: true, users: foundUsers });
+  } catch (err) {
+    console.error('Search users error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add friend (mutual / bilateral)
+router.post('/add-friend', async (req, res) => {
+  try {
+    const username = req.body.username || req.body.currentUsername;
+    const { friendUsername } = req.body;
+    if (!username || !friendUsername) {
+      return res.status(400).json({ error: 'Username and friendUsername required' });
+    }
+
+    const uClean = username.trim().toLowerCase();
+    const fClean = friendUsername.trim().toLowerCase();
+
+    if (uClean === fClean) {
+      return res.status(400).json({ error: 'Cannot add yourself as a friend' });
+    }
+
+    const { isConnected } = await ensureDb();
+
+    if (isConnected) {
+      const user = await User.findOne({ username: uClean });
+      const friend = await User.findOne({ username: fClean });
+
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      if (!friend) return res.status(404).json({ error: 'User not found' });
+
+      // Check if already friends
+      const already = user.friends.some(f => f.username.toLowerCase() === fClean);
+      if (!already) {
+        user.friends.push({
+          username: friend.username,
+          displayName: friend.displayName || friend.username,
+          avatar: friend.avatar || '😎'
+        });
+        await user.save();
+      }
+
+      const friendAlready = friend.friends.some(f => f.username.toLowerCase() === uClean);
+      if (!friendAlready) {
+        friend.friends.push({
+          username: user.username,
+          displayName: user.displayName || user.username,
+          avatar: user.avatar || '😎'
+        });
+        await friend.save();
+      }
+
+      return res.json({ success: true, friends: user.friends, message: `Added ${friend.displayName || friend.username} as friend!` });
+    } else {
+      const user = memoryUsers.get(uClean);
+      const friend = memoryUsers.get(fClean);
+
+      if (!user || !friend) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      if (!user.friends) user.friends = [];
+      if (!friend.friends) friend.friends = [];
+
+      if (!user.friends.some(f => f.username === fClean)) {
+        user.friends.push({
+          username: friend.username,
+          displayName: friend.displayName || friend.username,
+          avatar: friend.avatar || '😎'
+        });
+      }
+
+      if (!friend.friends.some(f => f.username === uClean)) {
+        friend.friends.push({
+          username: user.username,
+          displayName: user.displayName || user.username,
+          avatar: user.avatar || '😎'
+        });
+      }
+
+      return res.json({ success: true, friends: user.friends, message: `Added ${friend.displayName || friend.username} as friend!` });
+    }
+  } catch (err) {
+    console.error('Add friend error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Remove friend
+router.post('/remove-friend', async (req, res) => {
+  try {
+    const username = req.body.username || req.body.currentUsername;
+    const { friendUsername } = req.body;
+    if (!username || !friendUsername) {
+      return res.status(400).json({ error: 'Username and friendUsername required' });
+    }
+
+    const uClean = username.trim().toLowerCase();
+    const fClean = friendUsername.trim().toLowerCase();
+    const { isConnected } = await ensureDb();
+
+    if (isConnected) {
+      const user = await User.findOne({ username: uClean });
+      if (user) {
+        user.friends = user.friends.filter(f => f.username.toLowerCase() !== fClean);
+        await user.save();
+      }
+      const friend = await User.findOne({ username: fClean });
+      if (friend) {
+        friend.friends = friend.friends.filter(f => f.username.toLowerCase() !== uClean);
+        await friend.save();
+      }
+      return res.json({ success: true, friends: user ? user.friends : [] });
+    } else {
+      const user = memoryUsers.get(uClean);
+      if (user && user.friends) {
+        user.friends = user.friends.filter(f => f.username.toLowerCase() !== fClean);
+      }
+      const friend = memoryUsers.get(fClean);
+      if (friend && friend.friends) {
+        friend.friends = friend.friends.filter(f => f.username.toLowerCase() !== uClean);
+      }
+      return res.json({ success: true, friends: user ? user.friends : [] });
+    }
+  } catch (err) {
+    console.error('Remove friend error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get user friends with latest stats
+router.get('/friends', async (req, res) => {
+  try {
+    const username = (req.query.username || '').trim().toLowerCase();
+    if (!username) return res.status(400).json({ error: 'Username required' });
+
+    const { isConnected } = await ensureDb();
+
+    if (isConnected) {
+      const user = await User.findOne({ username });
+      if (!user) return res.status(404).json({ error: 'User not found' });
+
+      const friendUsernames = (user.friends || []).map(f => f.username.toLowerCase());
+      const friendDocs = await User.find({ username: { $in: friendUsernames } })
+        .select('username displayName avatar stats');
+
+      const docMap = new Map();
+      friendDocs.forEach(d => docMap.set(d.username.toLowerCase(), d));
+
+      const enriched = (user.friends || []).map(f => {
+        const doc = docMap.get(f.username.toLowerCase());
+        return {
+          username: f.username,
+          displayName: doc ? (doc.displayName || doc.username) : (f.displayName || f.username),
+          avatar: doc ? doc.avatar : f.avatar,
+          stats: doc ? doc.stats : { gamesPlayed: 0, wins: 0, losses: 0, totalScore: 0 }
+        };
+      });
+
+      return res.json({ success: true, friends: enriched });
+    } else {
+      const user = memoryUsers.get(username);
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      return res.json({ success: true, friends: user.friends || [] });
+    }
+  } catch (err) {
+    console.error('Get friends error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
+

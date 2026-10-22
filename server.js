@@ -9,6 +9,7 @@ const cors = require('cors');
 
 const { connectDB } = require('./config/db');
 const authRoutes = require('./routes/auth');
+const User = require('./models/User');
 const UnoGame = require('./game/UnoGame');
 const BotAI = require('./game/BotAI');
 
@@ -33,6 +34,64 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Store active games: roomCode -> UnoGame instance
 const rooms = new Map();
+
+// Online Users Presence Mapping: username.toLowerCase() -> { socketId, username, displayName, avatar, roomCode, status }
+const onlineUsers = new Map();
+// Socket to Username Mapping: socket.id -> username.toLowerCase()
+const socketToUser = new Map();
+
+// Real-time helper: Notify friends when a host creates a new room
+async function notifyFriendsRoomCreated(hostUsername, hostPlayer, roomCode) {
+  if (!hostUsername) return;
+  const hClean = hostUsername.toLowerCase();
+  try {
+    const friendUsernames = new Set();
+
+    // 1. Check MongoDB for mutual friends or users who added this host
+    try {
+      const user = await User.findOne({ username: hClean });
+      if (user && user.friends) {
+        user.friends.forEach(f => friendUsernames.add(f.username.toLowerCase()));
+      }
+      const withHost = await User.find({ "friends.username": hClean }).select('username');
+      withHost.forEach(u => friendUsernames.add(u.username.toLowerCase()));
+    } catch (e) {
+      // In-memory fallback if mongo isn't connected
+    }
+
+    // 2. Also check all online users for friends lists
+    for (const [uname, udata] of onlineUsers.entries()) {
+      if (udata.friends && udata.friends.some(f => (f.username || f).toLowerCase() === hClean)) {
+        friendUsernames.add(uname);
+      }
+    }
+
+    // 3. Emit real-time friend game event to each online friend
+    friendUsernames.forEach(fUser => {
+      if (fUser === hClean) return;
+      const target = onlineUsers.get(fUser);
+      if (target && target.socketId) {
+        io.to(target.socketId).emit('friend_game_created', {
+          hostUsername: hClean,
+          hostName: hostPlayer.name || hostUsername,
+          hostAvatar: hostPlayer.avatar || '👑',
+          roomCode: roomCode,
+          timestamp: Date.now()
+        });
+      }
+    });
+  } catch (err) {
+    console.error('Error notifying friends of room created:', err);
+  }
+}
+
+function notifyFriendsRoomClosed(roomCode) {
+  io.emit('friend_game_closed', { roomCode });
+}
+
+function notifyFriendsRoomStarted(roomCode) {
+  io.emit('friend_game_started', { roomCode });
+}
 
 // Helper: Get local network IP for playing from phones/tablets on same Wi-Fi
 function getLocalNetworkIp() {
@@ -233,8 +292,76 @@ io.on('connection', (socket) => {
   let currentRoom = null;
   let playerId = null;
 
+  // User Online Registration & Presence
+  socket.on('user_online', ({ username, displayName, avatar, friends }) => {
+    if (!username) return;
+    const uClean = username.trim().toLowerCase();
+    socketToUser.set(socket.id, uClean);
+    onlineUsers.set(uClean, {
+      socketId: socket.id,
+      username: uClean,
+      displayName: displayName || username,
+      avatar: avatar || '😎',
+      friends: friends || [],
+      roomCode: currentRoom,
+      status: currentRoom ? (rooms.get(currentRoom)?.status || 'waiting') : 'lobby'
+    });
+
+    // Notify any friends that this user just came online
+    io.emit('friend_presence_update', {
+      username: uClean,
+      isOnline: true,
+      roomCode: currentRoom,
+      status: currentRoom ? (rooms.get(currentRoom)?.status || 'waiting') : 'lobby'
+    });
+  });
+
+  // Query Online Friends Presence
+  socket.on('get_friends_presence', ({ friendUsernames }, callback) => {
+    if (!Array.isArray(friendUsernames)) return callback?.([]);
+    const presenceList = friendUsernames.map(f => {
+      const fClean = (f || '').trim().toLowerCase();
+      const online = onlineUsers.get(fClean);
+      if (!online) {
+        return { username: f, isOnline: false, status: 'offline', roomCode: null };
+      }
+      return {
+        username: f,
+        isOnline: true,
+        displayName: online.displayName,
+        avatar: online.avatar,
+        status: online.status || 'lobby',
+        roomCode: online.roomCode || null
+      };
+    });
+    callback?.(presenceList);
+  });
+
+  // Direct In-App Game Invite to Friend
+  socket.on('invite_friend', ({ toUsername, roomCode }, callback) => {
+    const toClean = (toUsername || '').trim().toLowerCase();
+    const target = onlineUsers.get(toClean);
+    const game = rooms.get(roomCode);
+    if (!game) return callback?.({ success: false, error: 'Room does not exist' });
+
+    const hostPlayer = game.players.find(p => p.socketId === socket.id);
+
+    if (target && target.socketId) {
+      io.to(target.socketId).emit('friend_game_invite', {
+        hostUsername: socketToUser.get(socket.id) || 'Friend',
+        hostName: hostPlayer?.name || 'Your friend',
+        hostAvatar: hostPlayer?.avatar || '👑',
+        roomCode: roomCode,
+        timestamp: Date.now()
+      });
+      callback?.({ success: true });
+    } else {
+      callback?.({ success: false, error: 'Friend is currently offline' });
+    }
+  });
+
   // Create Room
-  socket.on('create_room', ({ playerName, avatar, houseRules }, callback) => {
+  socket.on('create_room', ({ playerName, avatar, houseRules, username }, callback) => {
     try {
       const roomCode = generateRoomCode();
       playerId = `player_${socket.id.substring(0, 8)}`;
@@ -250,6 +377,23 @@ io.on('connection', (socket) => {
       currentRoom = roomCode;
 
       socket.join(roomCode);
+
+      // Update online presence for host and broadcast to friends
+      const hostUser = username ? username.trim().toLowerCase() : socketToUser.get(socket.id);
+      if (hostUser) {
+        socketToUser.set(socket.id, hostUser);
+        const existing = onlineUsers.get(hostUser) || {};
+        onlineUsers.set(hostUser, {
+          ...existing,
+          socketId: socket.id,
+          username: hostUser,
+          displayName: playerName,
+          avatar: avatar,
+          roomCode: roomCode,
+          status: 'waiting'
+        });
+        notifyFriendsRoomCreated(hostUser, hostPlayer, roomCode);
+      }
 
       callback({
         success: true,
@@ -372,7 +516,9 @@ io.on('connection', (socket) => {
   });
 
   // Start Round
-  socket.on('start_game', ({ roomCode }, callback) => {
+  socket.on('start_game', (data = {}, callback) => {
+    if (typeof data === 'function') { callback = data; data = {}; }
+    const roomCode = (typeof data === 'string' ? data : data?.roomCode) || currentRoom;
     const game = rooms.get(roomCode);
     if (!game) return callback?.({ success: false, error: 'Room not found.' });
 
@@ -383,6 +529,14 @@ io.on('connection', (socket) => {
 
     try {
       game.startRound();
+      // Update onlineUsers status to in_progress
+      game.players.forEach(p => {
+        const u = socketToUser.get(p.socketId);
+        if (u && onlineUsers.has(u)) {
+          onlineUsers.get(u).status = 'in_progress';
+        }
+      });
+      notifyFriendsRoomStarted(roomCode);
       io.to(roomCode).emit('sound_effect', { sound: 'game_start' });
       broadcastGameState(game);
       callback?.({ success: true });
@@ -392,7 +546,10 @@ io.on('connection', (socket) => {
   });
 
   // Play Card
-  socket.on('play_card', ({ roomCode, cardId, chosenColor }, callback) => {
+  socket.on('play_card', (data = {}, callback) => {
+    if (typeof data === 'function') { callback = data; data = {}; }
+    const roomCode = data?.roomCode || currentRoom;
+    const { cardId, chosenColor } = data;
     const game = rooms.get(roomCode);
     if (!game) return callback?.({ success: false, error: 'Room not found.' });
 
@@ -410,7 +567,10 @@ io.on('connection', (socket) => {
   });
 
   // Choose Wild Color
-  socket.on('choose_wild_color', ({ roomCode, color }, callback) => {
+  socket.on('choose_wild_color', (data = {}, callback) => {
+    if (typeof data === 'function') { callback = data; data = {}; }
+    const roomCode = data?.roomCode || currentRoom;
+    const { color } = data;
     const game = rooms.get(roomCode);
     if (!game) return callback?.({ success: false, error: 'Room not found.' });
 
@@ -425,7 +585,9 @@ io.on('connection', (socket) => {
   });
 
   // Draw Card
-  socket.on('draw_card', ({ roomCode }, callback) => {
+  socket.on('draw_card', (data = {}, callback) => {
+    if (typeof data === 'function') { callback = data; data = {}; }
+    const roomCode = data?.roomCode || currentRoom;
     const game = rooms.get(roomCode);
     if (!game) return callback?.({ success: false, error: 'Room not found.' });
 
@@ -440,7 +602,9 @@ io.on('connection', (socket) => {
   });
 
   // Pass Turn
-  socket.on('pass_turn', ({ roomCode }, callback) => {
+  socket.on('pass_turn', (data = {}, callback) => {
+    if (typeof data === 'function') { callback = data; data = {}; }
+    const roomCode = data?.roomCode || currentRoom;
     const game = rooms.get(roomCode);
     if (!game) return callback?.({ success: false, error: 'Room not found.' });
 
@@ -454,7 +618,9 @@ io.on('connection', (socket) => {
   });
 
   // Call UNO
-  socket.on('call_uno', ({ roomCode }, callback) => {
+  socket.on('call_uno', (data = {}, callback) => {
+    if (typeof data === 'function') { callback = data; data = {}; }
+    const roomCode = data?.roomCode || currentRoom;
     const game = rooms.get(roomCode);
     if (!game) return callback?.({ success: false });
 
@@ -468,7 +634,9 @@ io.on('connection', (socket) => {
   });
 
   // Catch UNO
-  socket.on('catch_uno', ({ roomCode }, callback) => {
+  socket.on('catch_uno', (data = {}, callback) => {
+    if (typeof data === 'function') { callback = data; data = {}; }
+    const roomCode = data?.roomCode || currentRoom;
     const game = rooms.get(roomCode);
     if (!game) return callback?.({ success: false });
 
@@ -481,7 +649,10 @@ io.on('connection', (socket) => {
   });
 
   // Wild Draw 4 Challenge Response
-  socket.on('resolve_challenge', ({ roomCode, doChallenge }, callback) => {
+  socket.on('resolve_challenge', (data = {}, callback) => {
+    if (typeof data === 'function') { callback = data; data = {}; }
+    const roomCode = data?.roomCode || currentRoom;
+    const { doChallenge } = data;
     const game = rooms.get(roomCode);
     if (!game) return callback?.({ success: false });
 
@@ -496,7 +667,10 @@ io.on('connection', (socket) => {
   });
 
   // 7-Swap Hand
-  socket.on('swap_hand', ({ roomCode, targetPlayerId }, callback) => {
+  socket.on('swap_hand', (data = {}, callback) => {
+    if (typeof data === 'function') { callback = data; data = {}; }
+    const roomCode = data?.roomCode || currentRoom;
+    const { targetPlayerId } = data;
     const game = rooms.get(roomCode);
     if (!game) return callback?.({ success: false });
 
@@ -534,8 +708,40 @@ io.on('connection', (socket) => {
     callback?.({ success: true });
   });
 
+  // Leave Room
+  socket.on('leave_room', ({ roomCode, playerId: targetPlayerId }) => {
+    const code = roomCode || currentRoom;
+    if (code) {
+      const game = rooms.get(code);
+      if (game) {
+        game.removePlayer(targetPlayerId || playerId);
+        if (game.players.length === 0) {
+          rooms.delete(code);
+          notifyFriendsRoomClosed(code);
+        } else {
+          broadcastGameState(game);
+        }
+      }
+      socket.leave(code);
+      currentRoom = null;
+      const u = socketToUser.get(socket.id);
+      if (u && onlineUsers.has(u)) {
+        onlineUsers.get(u).roomCode = null;
+        onlineUsers.get(u).status = 'lobby';
+        io.emit('friend_presence_update', { username: u, isOnline: true, roomCode: null, status: 'lobby' });
+      }
+    }
+  });
+
   // Disconnect
   socket.on('disconnect', () => {
+    const uClean = socketToUser.get(socket.id);
+    if (uClean) {
+      socketToUser.delete(socket.id);
+      onlineUsers.delete(uClean);
+      io.emit('friend_presence_update', { username: uClean, isOnline: false, roomCode: null, status: 'offline' });
+    }
+
     if (currentRoom) {
       const game = rooms.get(currentRoom);
       if (game) {
@@ -547,6 +753,7 @@ io.on('connection', (socket) => {
             game.removePlayer(playerId);
             if (game.players.length === 0) {
               rooms.delete(currentRoom);
+              notifyFriendsRoomClosed(currentRoom);
             }
           }
           broadcastGameState(game);

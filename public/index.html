@@ -21,32 +21,152 @@
   <div id="vfx-container"></div>
 
   <!-- ================================================= -->
-  <!-- 1. LOBBY VIEW                                     -->
+  <!-- AWESOME SITE HEADER                               -->
   <!-- ================================================= -->
-  <main id="view-lobby" class="view active">
-    <div class="lobby-container">
+  <header class="app-site-header" id="app-site-header">
+    <div class="header-container">
       
-      <!-- Lobby Auth & MongoDB Status Header -->
-      <div id="lobby-auth-bar" class="lobby-auth-bar">
+      <!-- Brand & Game Logo -->
+      <a href="/" class="header-brand" id="header-brand-logo" title="UNO! Real-Time Multiplayer">
+        <div class="header-brand-cards">
+          <span class="header-card letter-u">U</span>
+          <span class="header-card letter-n">N</span>
+          <span class="header-card letter-o">O</span>
+          <span class="header-card letter-ex">!</span>
+        </div>
+        <div class="header-brand-text">
+          <div class="brand-title-row">
+            <span class="brand-title">UNO!</span>
+            <span class="brand-live-badge"><span class="live-dot"></span>LIVE</span>
+          </div>
+          <span class="brand-subtitle">Real-Time Multiplayer</span>
+        </div>
+      </a>
+
+      <!-- Quick Nav Links -->
+      <nav class="header-nav">
+        <button type="button" class="header-nav-link" id="nav-btn-rules">
+          <span class="nav-icon">📖</span>
+          <span>Rules</span>
+        </button>
+        <button type="button" class="header-nav-link" id="nav-btn-modes">
+          <span class="nav-icon">🎮</span>
+          <span>Game Modes</span>
+        </button>
+        <button type="button" class="header-nav-link" id="nav-btn-houserules">
+          <span class="nav-icon">⚙️</span>
+          <span>House Rules</span>
+        </button>
+        <button type="button" class="header-nav-link" id="nav-btn-shortcuts">
+          <span class="nav-icon">⌨️</span>
+          <span>Shortcuts</span>
+        </button>
+        <button type="button" class="header-nav-link" id="nav-btn-friends">
+          <span class="nav-icon">👥</span>
+          <span>Friends</span>
+          <span id="header-friends-badge" class="friends-count-badge" style="display: none;">0</span>
+        </button>
+      </nav>
+
+      <!-- Right Action Suite: Audio, DB Status, and Auth -->
+      <div class="header-actions">
+        
+        <!-- Audio Controls in Header -->
+        <div class="header-audio-controls">
+          <button id="header-sound-toggle" class="header-icon-btn" type="button" title="Toggle Sound FX">🔊</button>
+          <button id="header-music-toggle" class="header-icon-btn" type="button" title="Toggle Arcade Music">🎵</button>
+        </div>
+
+        <!-- Database Status Pill -->
         <div class="db-status-pill" id="db-status-pill" title="Database status">
-          <span class="status-dot"></span> <span id="db-status-text">Guest Mode</span>
+          <span class="status-dot"></span>
+          <span id="db-status-text">Guest Mode</span>
         </div>
+
+        <!-- Auth: Logged Out State -->
         <div id="user-logged-out" class="auth-bar-status">
-          <button id="btn-open-auth" class="btn-auth-trigger" type="button">
-            <span>👤</span> Log In / Sign Up
+          <button id="btn-header-login" class="btn-header-auth btn-auth-login" type="button">
+            <span class="btn-icon">🔑</span>
+            <span>Log In</span>
           </button>
+          <button id="btn-header-register" class="btn-header-auth btn-auth-register" type="button">
+            <span class="btn-icon">✨</span>
+            <span>Sign Up</span>
+          </button>
+          <!-- Alias trigger for existing listeners -->
+          <button id="btn-open-auth" style="display: none;" type="button"></button>
         </div>
+
+        <!-- Auth: Logged In State -->
         <div id="user-logged-in" class="auth-bar-user" style="display: none;">
-          <div class="user-pill">
+          <button type="button" class="user-pill-btn" id="btn-header-profile" title="View Profile & Stats">
             <span id="user-badge-avatar" class="user-avatar-tag">😎</span>
             <div class="user-meta">
               <span id="user-badge-name" class="user-name-tag">Player</span>
               <span id="user-badge-stats" class="user-stats-tag">0 Wins • 0 Pts</span>
             </div>
-          </div>
-          <button id="btn-auth-logout" class="btn-logout" type="button" title="Log out">Sign Out</button>
+            <span class="user-pill-arrow">▾</span>
+          </button>
+          <button id="btn-auth-logout" class="btn-logout" type="button" title="Sign out of account">Sign Out</button>
+        </div>
+
+        <!-- Mobile Menu Toggle Button -->
+        <button id="btn-mobile-menu" class="mobile-menu-toggle" type="button" aria-label="Toggle navigation menu">
+          <span class="hamburger-bar"></span>
+          <span class="hamburger-bar"></span>
+          <span class="hamburger-bar"></span>
+        </button>
+
+      </div>
+    </div>
+
+    <!-- Mobile Navigation Drawer -->
+    <div id="mobile-nav-drawer" class="mobile-nav-drawer">
+      <div class="mobile-drawer-links">
+        <button type="button" class="mobile-drawer-link" id="mob-btn-rules">
+          <span>📖</span> Official UNO Rules
+        </button>
+        <button type="button" class="mobile-drawer-link" id="mob-btn-modes">
+          <span>🎮</span> Play Modes & Rooms
+        </button>
+        <button type="button" class="mobile-drawer-link" id="mob-btn-houserules">
+          <span>⚙️</span> House Rules Setup
+        </button>
+        <button type="button" class="mobile-drawer-link" id="mob-btn-shortcuts">
+          <span>⌨️</span> Keyboard Shortcuts
+        </button>
+        <button type="button" class="mobile-drawer-link" id="mob-btn-friends">
+          <span>👥</span> Friends & Online Games
+        </button>
+        <div class="mobile-drawer-divider"></div>
+        <div class="mobile-audio-row">
+          <button id="mob-sound-toggle" class="btn-secondary" type="button">🔊 Sound FX</button>
+          <button id="mob-music-toggle" class="btn-secondary" type="button">🎵 Arcade Music</button>
         </div>
       </div>
+    </div>
+  </header>
+
+  <!-- Real-Time Friend Game Floating Notification -->
+  <div id="friend-room-alert" class="friend-room-alert" style="display: none;">
+    <div class="alert-content">
+      <div class="alert-avatar" id="friend-alert-avatar">👑</div>
+      <div class="alert-info">
+        <div class="alert-title"><strong id="friend-alert-name">Friend</strong> created a game!</div>
+        <div class="alert-subtitle">Room <span id="friend-alert-code" class="alert-code-pill">----</span> is waiting for players</div>
+      </div>
+      <button type="button" id="btn-friend-alert-join" class="btn-direct-join">
+        <span>⚡</span> Join Game Now
+      </button>
+      <button type="button" id="btn-friend-alert-close" class="btn-alert-close" title="Dismiss">✕</button>
+    </div>
+  </div>
+
+  <!-- ================================================= -->
+  <!-- 1. LOBBY VIEW                                     -->
+  <!-- ================================================= -->
+  <main id="view-lobby" class="view active">
+    <div class="lobby-container">
 
       <div class="logo-header">
         <div class="uno-brand">
@@ -81,6 +201,17 @@
           <button type="button" class="avatar-option" data-avatar="🚀">🚀</button>
         </div>
       </section>
+
+      <!-- Active Friend Matches (Direct 1-Click Join) -->
+      <div id="active-friend-matches-card" class="active-friend-matches-card" style="display: none;">
+        <div class="friend-matches-header">
+          <span class="live-dot pulse-fast"></span>
+          <span>Friends Hosting Games</span>
+        </div>
+        <div id="friend-matches-list" class="friend-matches-list">
+          <!-- Populated dynamically with direct join buttons -->
+        </div>
+      </div>
 
       <!-- Game Modes -->
       <div class="modes-grid">
@@ -170,10 +301,13 @@
 
       <!-- Host Action Controls -->
       <div id="waiting-host-controls" class="host-controls">
-        <button id="btn-add-bot" class="btn-secondary">
+        <button id="btn-invite-friends" class="btn-secondary" type="button">
+          👥 Invite Friends
+        </button>
+        <button id="btn-add-bot" class="btn-secondary" type="button">
           🤖 Add AI Bot
         </button>
-        <button id="btn-start-game" class="btn-primary" disabled>
+        <button id="btn-start-game" class="btn-primary" disabled type="button">
           🚀 Start Game
         </button>
       </div>
@@ -250,6 +384,10 @@
 
         <!-- Bottom Hand Area -->
         <div class="hand-tray-container">
+          <div class="hand-meta-bar">
+            <span class="hand-tray-title">🎴 Your Hand</span>
+            <span id="my-cards-count" class="my-cards-count-badge">0 Cards</span>
+          </div>
           <!-- Curved Hand of Cards -->
           <div id="my-hand-container" class="my-hand-cards"></div>
         </div>
@@ -281,6 +419,151 @@
 
     </div>
   </section>
+
+  <!-- ================================================= -->
+  <!-- AWESOME SITE FOOTER                               -->
+  <!-- ================================================= -->
+  <footer class="app-site-footer" id="app-site-footer">
+    
+    <!-- Top Feature Showcase Strip -->
+    <div class="footer-features-strip">
+      <div class="footer-container">
+        <div class="feature-pills-grid">
+          <div class="feature-pill">
+            <span class="feature-icon">⚡</span>
+            <div class="feature-info">
+              <strong>Real-Time Sync</strong>
+              <span>Sub-10ms Socket.io WebSockets</span>
+            </div>
+          </div>
+          <div class="feature-pill">
+            <span class="feature-icon">📱</span>
+            <div class="feature-info">
+              <strong>Multi-Device</strong>
+              <span>Phones, Tablets, & Desktop</span>
+            </div>
+          </div>
+          <div class="feature-pill">
+            <span class="feature-icon">🤖</span>
+            <div class="feature-info">
+              <strong>Smart AI Bots</strong>
+              <span>Instant solo play anytime</span>
+            </div>
+          </div>
+          <div class="feature-pill">
+            <span class="feature-icon">🥞</span>
+            <div class="feature-info">
+              <strong>House Rules</strong>
+              <span>Stacking, 7-0 Swap, & Jump-Ins</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main 4-Column Footer Content -->
+    <div class="footer-main">
+      <div class="footer-container">
+        <div class="footer-grid">
+          
+          <!-- Column 1: Brand & Mission -->
+          <div class="footer-col col-brand">
+            <div class="footer-brand">
+              <div class="header-brand-cards">
+                <span class="header-card letter-u">U</span>
+                <span class="header-card letter-n">N</span>
+                <span class="header-card letter-o">O</span>
+                <span class="header-card letter-ex">!</span>
+              </div>
+              <span class="footer-brand-name">UNO! Online</span>
+            </div>
+            <p class="footer-desc">
+              The premier real-time multiplayer UNO card arena on the web. Connect instantly with friends on any phone, tablet, or browser with zero downloads.
+            </p>
+            <div class="footer-server-status">
+              <span class="live-dot pulse-fast"></span>
+              <span>Cloud Server Operational • Low Latency</span>
+            </div>
+            <div class="footer-share-row">
+              <button type="button" class="footer-share-btn" id="footer-btn-share">
+                <span>🔗</span> Copy Game Invite Link
+              </button>
+            </div>
+          </div>
+
+          <!-- Column 2: Game Modes -->
+          <div class="footer-col">
+            <h4 class="footer-heading">Game Modes</h4>
+            <ul class="footer-links">
+              <li><button type="button" class="footer-link-btn" id="footer-link-create">👑 Create Private Room</button></li>
+              <li><button type="button" class="footer-link-btn" id="footer-link-join">🚪 Join with Room Code</button></li>
+              <li><button type="button" class="footer-link-btn" id="footer-link-solo">🤖 Quick Solo vs AI Bots</button></li>
+              <li><button type="button" class="footer-link-btn" id="footer-link-party">📱 Wi-Fi Local Party Match</button></li>
+            </ul>
+          </div>
+
+          <!-- Column 3: Game Rules & Tactics -->
+          <div class="footer-col">
+            <h4 class="footer-heading">Rules & Strategy</h4>
+            <ul class="footer-links">
+              <li><button type="button" class="footer-link-btn" id="footer-link-rules">📖 Official UNO Rules</button></li>
+              <li><button type="button" class="footer-link-btn" id="footer-link-actions">🃏 Action Cards Guide (+2, ⇄, ⊘, +4)</button></li>
+              <li><button type="button" class="footer-link-btn" id="footer-link-stacking">🥞 Stacking & 7-0 Swap Rules</button></li>
+              <li><button type="button" class="footer-link-btn" id="footer-link-catch">🚨 UNO Calling & Catching Penalty</button></li>
+            </ul>
+          </div>
+
+          <!-- Column 4: Account & Player Hub -->
+          <div class="footer-col">
+            <h4 class="footer-heading">Player Hub</h4>
+            <ul class="footer-links">
+              <li><button type="button" class="footer-link-btn" id="footer-link-friends">👥 Friends & Social Hub</button></li>
+              <li><button type="button" class="footer-link-btn" id="footer-link-login">🔑 Player Log In</button></li>
+              <li><button type="button" class="footer-link-btn" id="footer-link-register">✨ Create Free Account</button></li>
+              <li><button type="button" class="footer-link-btn" id="footer-link-profile">🏆 Player Profile & Stats</button></li>
+              <li><button type="button" class="footer-link-btn" id="footer-link-shortcuts">⌨️ Keyboard Controls Cheatsheet</button></li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Shortcuts Banner -->
+    <div class="footer-shortcuts-bar">
+      <div class="footer-container shortcuts-content">
+        <span class="shortcuts-label">⚡ Tactile Shortcuts:</span>
+        <div class="shortcuts-keys">
+          <span class="key-badge"><kbd>Space</kbd> Draw Card</span>
+          <span class="key-badge"><kbd>P</kbd> Pass Turn</span>
+          <span class="key-badge"><kbd>U</kbd> Shout UNO!</span>
+          <span class="key-badge"><kbd>C</kbd> Catch Opponent</span>
+          <span class="key-badge"><kbd>Esc</kbd> Close Windows</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Legal & Attribution Bar -->
+    <div class="footer-bottom">
+      <div class="footer-container footer-bottom-flex">
+        <div class="footer-bottom-left">
+          <p class="copyright-text">
+            © 2026 UNO! Online. Built with ❤️ for card game lovers worldwide.
+          </p>
+          <p class="disclaimer-text">
+            Disclaimer: UNO® is a registered trademark of Mattel, Inc. This project is an independent fan-made web implementation created solely for social gaming, educational, and non-commercial entertainment.
+          </p>
+        </div>
+        <div class="footer-bottom-right">
+          <button type="button" class="back-to-top-btn" id="btn-back-to-top" title="Scroll back to top">
+            <span>Back to Top</span>
+            <span class="arrow-up">↑</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </footer>
 
   <!-- ================================================= -->
   <!-- MODALS                                            -->
@@ -445,6 +728,169 @@
       <button id="btn-close-rules" class="btn-secondary" style="margin: 0 auto;">
         Got it!
       </button>
+    </div>
+  </div>
+
+  <!-- Player Profile & Detailed Stats Modal -->
+  <div id="modal-profile" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="profile-modal-header">
+        <div class="profile-modal-avatar-wrapper">
+          <span id="profile-modal-avatar" class="profile-big-avatar">😎</span>
+          <span class="profile-status-badge">ONLINE</span>
+        </div>
+        <h2 id="profile-modal-name" class="modal-title" style="margin-top: 10px;">Player</h2>
+        <p id="profile-modal-username" class="modal-desc" style="margin-bottom: 6px;">@player</p>
+        <span class="profile-sync-tag">🍃 Synced with MongoDB Cloud</span>
+      </div>
+
+      <div class="profile-stats-grid">
+        <div class="stat-box">
+          <span class="stat-number" id="profile-stat-games">0</span>
+          <span class="stat-label">Matches</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-number text-success" id="profile-stat-wins">0</span>
+          <span class="stat-label">Wins 🏆</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-number text-muted" id="profile-stat-losses">0</span>
+          <span class="stat-label">Losses</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-number text-accent" id="profile-stat-rate">0%</span>
+          <span class="stat-label">Win Rate</span>
+        </div>
+        <div class="stat-box full-width">
+          <span class="stat-number text-yellow" id="profile-stat-score">0</span>
+          <span class="stat-label">Total Points ⭐</span>
+        </div>
+      </div>
+
+      <div class="profile-avatar-change-section">
+        <label class="input-label" style="text-align: center; margin-bottom: 8px;">Switch Profile Avatar</label>
+        <div class="profile-avatar-row">
+          <button type="button" class="profile-avatar-opt" data-avatar="😎">😎</button>
+          <button type="button" class="profile-avatar-opt" data-avatar="👑">👑</button>
+          <button type="button" class="profile-avatar-opt" data-avatar="🦊">🦊</button>
+          <button type="button" class="profile-avatar-opt" data-avatar="🤖">🤖</button>
+          <button type="button" class="profile-avatar-opt" data-avatar="🦄">🦄</button>
+          <button type="button" class="profile-avatar-opt" data-avatar="🦖">🦖</button>
+          <button type="button" class="profile-avatar-opt" data-avatar="🐯">🐯</button>
+          <button type="button" class="profile-avatar-opt" data-avatar="👾">👾</button>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top: 20px; display: flex; gap: 12px; justify-content: center;">
+        <button type="button" id="btn-profile-signout" class="btn-secondary" style="color: var(--uno-red);">Sign Out</button>
+        <button type="button" id="btn-close-profile" class="btn-primary" style="min-width: 120px;">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Keyboard Shortcuts Modal -->
+  <div id="modal-shortcuts" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 480px;">
+      <h2 class="modal-title">⌨️ Keyboard Controls</h2>
+      <p class="modal-desc">Play faster during matches using simple hotkeys:</p>
+
+      <div class="shortcuts-modal-list">
+        <div class="shortcut-row">
+          <div class="shortcut-keys"><kbd>Space</kbd> or <kbd>D</kbd></div>
+          <div class="shortcut-desc"><strong>Draw Card</strong> from the 3D deck</div>
+        </div>
+        <div class="shortcut-row">
+          <div class="shortcut-keys"><kbd>P</kbd> or <kbd>Enter</kbd></div>
+          <div class="shortcut-desc"><strong>Pass Turn</strong> if you can't play drawn card</div>
+        </div>
+        <div class="shortcut-row">
+          <div class="shortcut-keys"><kbd>U</kbd></div>
+          <div class="shortcut-desc"><strong>Shout UNO!</strong> when 1 card remains in your hand</div>
+        </div>
+        <div class="shortcut-row">
+          <div class="shortcut-keys"><kbd>C</kbd></div>
+          <div class="shortcut-desc"><strong>Catch Opponent</strong> who forgot to shout UNO</div>
+        </div>
+        <div class="shortcut-row">
+          <div class="shortcut-keys"><kbd>M</kbd></div>
+          <div class="shortcut-desc"><strong>Toggle Music</strong> background arcade soundtrack</div>
+        </div>
+        <div class="shortcut-row">
+          <div class="shortcut-keys"><kbd>S</kbd></div>
+          <div class="shortcut-desc"><strong>Toggle Sound FX</strong> cards, chimes, and shouts</div>
+        </div>
+        <div class="shortcut-row">
+          <div class="shortcut-keys"><kbd>Esc</kbd></div>
+          <div class="shortcut-desc"><strong>Close Windows</strong> & active popups</div>
+        </div>
+      </div>
+
+      <button id="btn-close-shortcuts" class="btn-primary" style="margin: 18px auto 0; display: block;">
+        Got It!
+      </button>
+    </div>
+  </div>
+
+  <!-- Friends & Social Hub Modal -->
+  <div id="modal-friends" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 520px;">
+      
+      <div class="friends-modal-header">
+        <h2 class="modal-title">👥 Friends & Social Hub</h2>
+        <p class="modal-desc">Connect with friends, see who's online, and join their games in one click.</p>
+      </div>
+
+      <!-- Active Friend Matches inside modal -->
+      <div id="modal-active-matches" class="modal-active-matches-container" style="display: none;"></div>
+
+      <!-- Tab Switcher: My Friends vs Find Friends -->
+      <div class="modal-header-tabs" style="margin-top: 14px;">
+        <button id="tab-friends-my" class="auth-tab active" type="button">
+          My Friends (<span id="friends-total-count">0</span>)
+        </button>
+        <button id="tab-friends-search" class="auth-tab" type="button">
+          Find & Add Friends
+        </button>
+      </div>
+
+      <!-- Tab 1: My Friends List -->
+      <div id="panel-friends-list" class="friends-tab-panel active">
+        <div id="friends-list-container" class="friends-list-scroll">
+          <!-- Populated dynamically with friends and direct join buttons -->
+        </div>
+        <div id="friends-empty-state" class="friends-empty-state" style="display: none;">
+          <span class="empty-icon">🤝</span>
+          <p>No friends added yet!</p>
+          <button type="button" class="btn-secondary btn-sm" id="btn-go-search-friends">Search Players to Add</button>
+        </div>
+      </div>
+
+      <!-- Tab 2: Find & Add Friends -->
+      <div id="panel-friends-search" class="friends-tab-panel" style="display: none;">
+        <div class="friends-search-box">
+          <input type="text" id="input-search-friends" class="text-input" placeholder="Type username (e.g. alex, maya, rex)...">
+          <button id="btn-do-search-friends" class="btn-primary" type="button" style="white-space: nowrap; padding: 10px 16px;">
+            Search
+          </button>
+        </div>
+        <div id="friends-search-results" class="friends-search-results-list">
+          <div class="search-hint">Type at least 2 characters to search for registered players.</div>
+        </div>
+      </div>
+
+      <!-- Guest Notice (shown if user not logged in) -->
+      <div id="friends-guest-notice" class="friends-guest-banner" style="display: none;">
+        <span class="guest-lock-icon">🔒</span>
+        <p>Log in or create a free account to add friends, track who's online, and join friend games with one click!</p>
+        <div style="display: flex; gap: 8px; justify-content: center; margin-top: 10px;">
+          <button type="button" class="btn-primary btn-sm" id="btn-friends-login">Log In</button>
+          <button type="button" class="btn-secondary btn-sm" id="btn-friends-register">Sign Up</button>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top: 18px; display: flex; justify-content: center;">
+        <button type="button" id="btn-close-friends" class="btn-secondary" style="min-width: 120px;">Close</button>
+      </div>
     </div>
   </div>
 
